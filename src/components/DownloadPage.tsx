@@ -122,7 +122,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
     let popunderScript: HTMLScriptElement | null = null;
     let socialBarScript: HTMLScriptElement | null = null;
 
-    const popUrl = extractScriptUrl(popunderAd?.code) || 'https://rightyrely.com/d7/5e/20/d75e2089a96bcea84d2e4ca5ffbbc3fd.js';
+    const popUrl = extractScriptUrl(popunderAd?.code) || 'https://rightyrely.com/0a/44/b9/0a44b90796d94943a2537dad9f2592d0.js';
     if (popUrl) {
       popunderScript = document.createElement('script');
       popunderScript.src = popUrl;
@@ -131,7 +131,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
       if (popunderAd) api.trackAdEvent(popunderAd.id, 'impression');
     }
 
-    const socialUrl = extractScriptUrl(socialBarAd?.code) || 'https://rightyrely.com/81/46/22/814622da59a28f60c66b25c86a7bb7db.js';
+    const socialUrl = extractScriptUrl(socialBarAd?.code) || 'https://rightyrely.com/96/b3/8d/96b38d2a9c3702f149bd60e4800e311b.js';
     if (socialUrl) {
       socialBarScript = document.createElement('script');
       socialBarScript.src = socialUrl;
@@ -182,12 +182,14 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
 
   // Trigger Smart Link helper
   const triggerSmartLink = () => {
-    if (!smartLinkAd || !smartLinkAd.isEnabled || !smartLinkAd.code) return;
-    const targetUrl = smartLinkAd.code.trim();
+    const targetUrl =
+      smartLinkAd && smartLinkAd.isEnabled && smartLinkAd.code?.trim()
+        ? smartLinkAd.code.trim()
+        : 'https://rightyrely.com/cu96f0bz3h?key=09cf79c98298c393e20ad910f6953bf7';
 
     if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://') || targetUrl.startsWith('//')) {
       const fullUrl = targetUrl.startsWith('//') ? 'https:' + targetUrl : targetUrl;
-      api.trackAdEvent(smartLinkAd.id, 'click');
+      if (smartLinkAd) api.trackAdEvent(smartLinkAd.id, 'click');
       try {
         window.open(fullUrl, '_blank', 'noopener,noreferrer');
       } catch (err) {
@@ -485,28 +487,4 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
-                  </button>
-                </div>
-              )}
-
-            </div>
-
-            {/* Middle Adsterra Ad Unit */}
-            <AdDisplay ads={ads} location="download_page_middle" type="native" />
-
-          </main>
-        </div>
-
-        {/* Mobile Footer */}
-        <footer className="border-t border-zinc-800/80 py-4 text-center text-[11px] text-zinc-500">
-          <p>© {new Date().getFullYear()} FileVault. Secure Real-Time Hosting.</p>
-        </footer>
-
-        {/* Sticky Bottom Adsterra Advertisement Bar */}
-        <AdDisplay ads={ads} type="sticky" className="fixed bottom-0 left-0 right-0 z-50 p-2 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800" />
-
-      </div>
-    </div>
-  );
-};
-
+                  </bu
