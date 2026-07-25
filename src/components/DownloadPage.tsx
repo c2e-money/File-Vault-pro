@@ -487,4 +487,13 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
-                  </bu
+                  </button>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+};
