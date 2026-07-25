@@ -104,8 +104,8 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
         return null;
       };
 
-      const popUrl = extractScriptUrl(popunderAd?.code) || 'https://rightyrely.com/d7/5e/20/d75e2089a96bcea84d2e4ca5ffbbc3fd.js';
-      const socialUrl = extractScriptUrl(socialBarAd?.code) || 'https://rightyrely.com/81/46/22/814622da59a28f60c66b25c86a7bb7db.js';
+      const popUrl = extractScriptUrl(popunderAd?.code) || '<script src="https://rightyrely.com/0a/44/b9/0a44b90796d94943a2537dad9f2592d0.js';
+      const socialUrl = extractScriptUrl(socialBarAd?.code) || '<script src="https://rightyrely.com/96/b3/8d/96b38d2a9c3702f149bd60e4800e311b.js';
 
       let popunderScript: HTMLScriptElement | null = null;
       let socialBarScript: HTMLScriptElement | null = null;
