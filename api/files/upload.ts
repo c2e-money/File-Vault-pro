@@ -8,30 +8,19 @@ export const config = {
   },
 };
 
-// Google Drive Authentication Setup
-const auth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY 
-      ? process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n') 
-      : undefined,
-  },
-  scopes: ["https://www.googleapis.com/auth/drive.file"],
-});
-
-const drive = google.drive({ version: "v3", auth });
-
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
-    return res.status(405).json({
-      error: "Method not allowed",
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   const uploadDir = "/tmp/uploads";
 
   if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    } catch (e) {
+      // Ignore if directory already exists
+    }
   }
 
   const form = new IncomingForm({
@@ -41,61 +30,84 @@ export default async function handler(req: any, res: any) {
     maxFileSize: 1024 * 1024 * 1000, // 1GB
   });
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(500).json({
-        error: err.message,
+  try {
+    const parseForm = () => {
+      return new Promise((resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+          if (err) reject(err);
+          else resolve({ fields, files });
+        });
       });
+    };
+
+    const { files }: any = await parseForm();
+
+    // Check credentials before calling Google API
+    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_DRIVE_FOLDER_ID) {
+      return res.status(500).json({ error: "Google Drive environment variables are missing on Vercel." });
     }
 
-    try {
-      // Formidable v3/v2 ke mutabiq files array handle karna
-      const fileData = files.file || files.files;
-      const uploadedFiles = Array.isArray(fileData) ? fileData : [fileData];
-      const driveResponses = [];
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/drive.file"],
+    });
 
-      for (const file of uploadedFiles) {
-        if (!file) continue;
+    const drive = google.drive({ version: "v3", auth });
 
-        const filePath = file.filepath || file.path;
-        const fileName = file.originalFilename || file.name || "uploaded_file";
-        const mimeType = file.mimetype || "application/octet-stream";
+    // Handle formidable structure safely
+    const rawFiles = files.file || files.files;
+    const uploadedFiles = Array.isArray(rawFiles) ? rawFiles : [rawFiles];
+    const driveResponses = [];
 
-        const fileMetadata = {
-          name: fileName,
-          parents: [process.env.GOOGLE_DRIVE_FOLDER_ID as string],
-        };
+    for (const file of uploadedFiles) {
+      if (!file) continue;
 
-        const media = {
-          mimeType: mimeType,
-          body: fs.createReadStream(filePath),
-        };
+      const filePath = file.filepath || file.path;
+      const fileName = file.originalFilename || file.name || "uploaded_file";
+      const mimeType = file.mimetype || "application/octet-stream";
 
-        // Google Drive par upload call
-        const response = await drive.files.create({
-          requestBody: fileMetadata,
-          media: media,
-          fields: "id, name, webViewLink",
-        });
-
-        driveResponses.push(response.data);
-
-        // Temp file delete karna
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+      if (!filePath || !fs.existsSync(filePath)) {
+        continue;
       }
 
-      return res.status(201).json({
-        message: "Files uploaded to Google Drive successfully",
-        files: driveResponses,
+      const fileMetadata = {
+        name: fileName,
+        parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
+      };
+
+      const media = {
+        mimeType: mimeType,
+        body: fs.createReadStream(filePath),
+      };
+
+      const response = await drive.files.create({
+        requestBody: fileMetadata,
+        media: media,
+        fields: "id, name, webViewLink",
       });
 
-    } catch (uploadError: any) {
-      console.error("Google Drive Upload Error:", uploadError);
-      return res.status(500).json({
-        error: uploadError.message || "Failed to upload to Google Drive",
-      });
+      driveResponses.push(response.data);
+
+      // Clean up local temp file safely
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {
+        // ignore cleanup error
+      }
     }
-  });
+
+    return res.status(201).json({
+      message: "Files uploaded to Google Drive successfully",
+      files: driveResponses,
+    });
+
+  } catch (error: any) {
+    console.error("Function Invocation Error:", error);
+    return res.status(500).json({
+      error: error.message || "Internal server error during file upload",
+    });
+  }
 }
