@@ -83,7 +83,7 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
     }
   }, [file?.id]);
 
-  // Load Popunder and Social Bar advertisement scripts automatically on download page load
+  // Load Popunder and Social Bar advertisement scripts automatically on download page load with updated links
   useEffect(() => {
     if (isOpen && file) {
       const popunderAd = ads.find((a) => a.isEnabled && a.type === 'popunder');
@@ -104,8 +104,8 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
         return null;
       };
 
-      const popUrl = extractScriptUrl(popunderAd?.code) || '<script src="https://rightyrely.com/0a/44/b9/0a44b90796d94943a2537dad9f2592d0.js';
-      const socialUrl = extractScriptUrl(socialBarAd?.code) || '<script src="https://rightyrely.com/96/b3/8d/96b38d2a9c3702f149bd60e4800e311b.js';
+      const popUrl = extractScriptUrl(popunderAd?.code) || 'https://rightyrely.com/0a/44/b9/0a44b90796d94943a2537dad9f2592d0.js';
+      const socialUrl = extractScriptUrl(socialBarAd?.code) || 'https://rightyrely.com/96/b3/8d/96b38d2a9c3702f149bd60e4800e311b.js';
 
       let popunderScript: HTMLScriptElement | null = null;
       let socialBarScript: HTMLScriptElement | null = null;
@@ -477,14 +477,14 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
                   <div
                     key={rf.id}
                     onClick={() => onSelectRelated(rf)}
-                    className="p-3 bg-zinc-950 hover:bg-zinc-800/80 border border-zinc-800 rounded-xl cursor-pointer transition flex items-center gap-3"
+                    className="p-3 bg-zinc-950 border border-zinc-800 hover:border-indigo-500/50 rounded-xl cursor-pointer transition flex items-center gap-3"
                   >
-                    <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-900 flex items-center justify-center shrink-0">
                       {getFileIcon(rf.mimeType, rf.originalName)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-bold text-zinc-100 truncate">{rf.originalName}</h4>
-                      <p className="text-[11px] text-zinc-400">{formatBytes(rf.fileSize)} • {rf.downloadsCount} dl</p>
+                      <h4 className="text-xs font-bold text-zinc-200 truncate">{rf.originalName}</h4>
+                      <p className="text-[10px] text-zinc-400">{formatBytes(rf.fileSize)} • {rf.downloadsCount} downloads</p>
                     </div>
                   </div>
                 ))}
