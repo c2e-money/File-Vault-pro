@@ -56,58 +56,68 @@ const defaultCategories: Category[] = [
 
 const defaultAds: Advertisement[] = [
   {
-    id: 'ad-popunder-new',
-    title: 'Adsterra Popunder Script',
+    id: 'ad-popunder-main',
+    title: 'Popunder Ad',
     type: 'popunder',
     code: '<script src="https://rightyrely.com/0a/44/b9/0a44b90796d94943a2537dad9f2592d0.js"></script>',
     location: 'download_page',
     isEnabled: true,
-    clicks: 105,
-    impressions: 4200,
+    clicks: 0,
+    impressions: 0,
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'ad-socialbar-new',
-    title: 'Adsterra Social Bar Unit',
+    id: 'ad-socialbar-main',
+    title: 'Social Bar Ad',
     type: 'socialbar',
     code: '<script src="https://rightyrely.com/96/b3/8d/96b38d2a9c3702f149bd60e4800e311b.js"></script>',
-    location: 'bottom_right_popup',
+    location: 'download_page',
     isEnabled: true,
-    clicks: 64,
-    impressions: 1820,
+    clicks: 0,
+    impressions: 0,
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'ad-smartlink-new',
-    title: 'Adsterra Smart Link (Direct URL)',
+    id: 'ad-smartlink-main',
+    title: 'Smart Link Monetized CTA',
     type: 'smartlink',
     code: 'https://rightyrely.com/cu96f0bz3h?key=09cf79c98298c393e20ad910f6953bf7',
     location: 'download_button',
     isEnabled: true,
-    clicks: 180,
-    impressions: 2900,
+    clicks: 0,
+    impressions: 0,
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'ad-banner-new',
-    title: 'Adsterra Banner Unit (468x60)',
+    id: 'ad-banner-468x60',
+    title: 'Download Page Banner (468x60)',
     type: 'banner',
-    code: '<script type="text/javascript">\n  atOptions = {\n    \'key\' : \'7e7c02ee62652ec8bf5c47225c4cddec\',\n    \'format\' : \'iframe\',\n    \'height\' : 60,\n    \'width\' : 468,\n    \'params\' : {}\n  };\n</script>\n<script type="text/javascript" src="https://rightyrely.com/7e7c02ee62652ec8bf5c47225c4cddec/invoke.js"></script>',
+    code: `<script type="text/javascript">
+  atOptions = {
+    'key' : '7e7c02ee62652ec8bf5c47225c4cddec',
+    'format' : 'iframe',
+    'height' : 60,
+    'width' : 468,
+    'params' : {}
+  };
+</script>
+<script type="text/javascript" src="https://rightyrely.com/7e7c02ee62652ec8bf5c47225c4cddec/invoke.js"></script>`,
     location: 'download_page_top',
     isEnabled: true,
-    clicks: 142,
-    impressions: 3890,
+    clicks: 0,
+    impressions: 0,
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'ad-native-new',
-    title: 'Adsterra Native Banner Unit',
+    id: 'ad-native-main',
+    title: 'Download Page Native Banner',
     type: 'native',
-    code: '<script async="async" data-cfasync="false" src="https://rightyrely.com/dbaf6128171b01f81aaa66b44edd673e/invoke.js"></script>\n<div id="container-dbaf6128171b01f81aaa66b44edd673e"></div>',
+    code: `<script async="async" data-cfasync="false" src="https://rightyrely.com/dbaf6128171b01f81aaa66b44edd673e/invoke.js"></script>
+<div id="container-dbaf6128171b01f81aaa66b44edd673e"></div>`,
     location: 'download_page_middle',
     isEnabled: true,
-    clicks: 89,
-    impressions: 2150,
+    clicks: 0,
+    impressions: 0,
     createdAt: new Date().toISOString(),
   },
 ];
@@ -131,7 +141,7 @@ const defaultSettings: WebsiteSettings = {
 
 function getInitialDb(): DatabaseSchema {
   const adminId = 'usr-admin-1';
-  const adminEmail = process.env.ADMIN_EMAIL || 'dipenshort@gmail.com';
+  const adminEmail = process.env.ADMIN_EMAIL || 'dipen8717@gmail.com';
   const adminPassword = process.env.ADMIN_PASSWORD || 'Dipen&Biswas9101';
   const adminPasswordHash = bcrypt.hashSync(adminPassword, 10);
 
@@ -205,7 +215,7 @@ class Database {
         const usersList: User[] = parsed.users || [];
         const passwordsDict = parsed.passwords || {};
 
-        const envAdminEmail = process.env.ADMIN_EMAIL || 'dipenshort@gmail.com';
+        const envAdminEmail = process.env.ADMIN_EMAIL || 'dipen8717@gmail.com';
         const envAdminPassword = process.env.ADMIN_PASSWORD || 'Dipen&Biswas9101';
 
         // Guarantee admin user uses updated credentials
@@ -301,4 +311,3 @@ class Database {
 }
 
 export const db = new Database();
-    
