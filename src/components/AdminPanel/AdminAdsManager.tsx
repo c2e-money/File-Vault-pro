@@ -37,7 +37,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ ads, onRefresh
   const [saving, setSaving] = useState(false);
 
   const adTypeOptions: { type: AdType; label: string; desc: string }[] = [
-    { type: 'banner', label: 'Banner Ads', desc: 'Header, Footer & Sidebar 728x90 / 300x250 leaderboards' },
+    { type: 'banner', label: 'Banner Ads', desc: 'Header, Footer & Sidebar 468x60 leaderboards' },
     { type: 'native', label: 'Native Ads', desc: 'Blends seamlessly into download pages and file grids' },
     { type: 'sticky', label: 'Sticky Banner', desc: 'Floats persistently at the bottom of the user viewport' },
     { type: 'popunder', label: 'Popunder Ads', desc: 'Triggers clean background window under main app' },
@@ -47,44 +47,45 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ ads, onRefresh
     { type: 'popup', label: 'Popup Ads', desc: 'Modal dialog sponsor overlays' },
   ];
 
+  // Updated Templates with your new Adsterra codes
   const applyAdsterraTemplate = (templateType: AdType) => {
     setType(templateType);
     if (templateType === 'banner') {
-      setTitle('Adsterra Banner Unit (300x250 / 728x90)');
+      setTitle('Adsterra Banner Unit (468x60)');
       setLocation('download_page_top');
       setCode(`<script type="text/javascript">
-\tatOptions = {
-\t\t'key' : 'd75e2089a96bcea84d2e4ca5ffbbc3fd',
-\t\t'format' : 'iframe',
-\t\t'height' : 250,
-\t\t'width' : 300,
-\t\t'params' : {}
-\t};
+  atOptions = {
+    'key' : '7e7c02ee62652ec8bf5c47225c4cddec',
+    'format' : 'iframe',
+    'height' : 60,
+    'width' : 468,
+    'params' : {}
+  };
 </script>
-<script type="text/javascript" src="https://www.highperformanceformat.com/d75e2089a96bcea84d2e4ca5ffbbc3fd/invoke.js"></script>`);
+<script type="text/javascript" src="https://rightyrely.com/7e7c02ee62652ec8bf5c47225c4cddec/invoke.js"></script>`);
     } else if (templateType === 'popunder') {
       setTitle('Adsterra Popunder Script');
       setLocation('download_page');
-      setCode('https://rightyrely.com/d7/5e/20/d75e2089a96bcea84d2e4ca5ffbbc3fd.js');
+      setCode('<script src="https://rightyrely.com/0a/44/b9/0a44b90796d94943a2537dad9f2592d0.js"></script>');
     } else if (templateType === 'socialbar') {
       setTitle('Adsterra Social Bar Unit');
       setLocation('bottom_right_popup');
-      setCode('https://rightyrely.com/81/46/22/814622da59a28f60c66b25c86a7bb7db.js');
+      setCode('<script src="https://rightyrely.com/96/b3/8d/96b38d2a9c3702f149bd60e4800e311b.js"></script>');
     } else if (templateType === 'smartlink') {
       setTitle('Adsterra Smart Link (Direct URL)');
       setLocation('download_button');
-      setCode('https://rightyrely.com/smartlink');
+      setCode('https://rightyrely.com/cu96f0bz3h?key=09cf79c98298c393e20ad910f6953bf7');
     } else if (templateType === 'native') {
       setTitle('Adsterra Native Banner Unit');
       setLocation('download_page_middle');
-      setCode(`<script async="async" data-cfasync="false" src="https://www.highperformanceformat.com/123456/invoke.js"></script>
-<div id="container-123456"></div>`);
+      setCode(`<script async="async" data-cfasync="false" src="https://rightyrely.com/dbaf6128171b01f81aaa66b44edd673e/invoke.js"></script>
+<div id="container-dbaf6128171b01f81aaa66b44edd673e"></div>`);
     } else if (templateType === 'sticky') {
       setTitle('Adsterra Sticky Footer Banner');
       setLocation('global_sticky_bottom');
       setCode(`<div class="p-2 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between text-xs text-zinc-200">
   <span>⚡ <strong>High-Speed Cloud Mirror:</strong> Premium Resume Storage Node</span>
-  <a href="https://rightyrely.com/smartlink" target="_blank" class="px-3 py-1 bg-amber-500 text-zinc-950 font-bold rounded-lg">Download Mirror</a>
+  <a href="https://rightyrely.com/cu96f0bz3h?key=09cf79c98298c393e20ad910f6953bf7" target="_blank" class="px-3 py-1 bg-amber-500 text-zinc-950 font-bold rounded-lg">Download Mirror</a>
 </div>`);
     }
   };
@@ -307,7 +308,7 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ ads, onRefresh
                       onClick={() => applyAdsterraTemplate('banner')}
                       className="px-2 py-0.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700/50 text-indigo-300 rounded font-bold cursor-pointer"
                     >
-                      Banner (300x250)
+                      Banner
                     </button>
                     <button
                       type="button"
@@ -408,4 +409,4 @@ export const AdminAdsManager: React.FC<AdminAdsManagerProps> = ({ ads, onRefresh
     </div>
   );
 };
-    
+                    
