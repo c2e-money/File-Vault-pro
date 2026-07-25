@@ -66,7 +66,19 @@ export const AdDisplay: React.FC<AdDisplayProps> = ({ ads, location, type, class
     api.trackAdEvent(activeAd.id, 'click');
   };
 
-  // Render Adsterra & JavaScript-based ads inside an isolated frame context
+  // Dynamic frame height calculation based on ad type and code
+  const is468x60Banner = rawCode.includes("'height' : 60") || rawCode.includes('468');
+  const frameHeight =
+    activeAd.type === 'sticky'
+      ? '60px'
+      : activeAd.type === 'banner'
+      ? is468x60Banner
+        ? '70px'
+        : '250px'
+      : activeAd.type === 'native'
+      ? '180px'
+      : '100px';
+
   if (containsScript || isDirectJsUrl) {
     let scriptContent = rawCode;
     if (isDirectJsUrl) {
@@ -85,6 +97,7 @@ export const AdDisplay: React.FC<AdDisplayProps> = ({ ads, location, type, class
       <html>
         <head>
           <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <base target="_blank">
           <style>
             html, body {
@@ -95,8 +108,13 @@ export const AdDisplay: React.FC<AdDisplayProps> = ({ ads, location, type, class
               justify-content: center;
               align-items: center;
               overflow: hidden;
+              width: 100%;
+              height: 100%;
               color: #ffffff;
               font-family: system-ui, -apple-system, sans-serif;
+            }
+            img, iframe, div, script {
+              max-width: 100% !important;
             }
           </style>
         </head>
@@ -106,22 +124,20 @@ export const AdDisplay: React.FC<AdDisplayProps> = ({ ads, location, type, class
       </html>
     `;
 
-    // Dynamic frame height calculation based on ad type
-    const frameHeight =
-      activeAd.type === 'sticky' ? '70px' : activeAd.type === 'banner' ? '250px' : activeAd.type === 'native' ? '180px' : '100px';
-
     return (
       <div
         ref={containerRef}
         onClick={handleClick}
-        className={`ad-container ${
-          activeAd.type === 'sticky' ? '' : 'my-3 overflow-hidden rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-1 flex justify-center items-center shadow-lg'
+        className={`ad-container max-w-full overflow-hidden ${
+          activeAd.type === 'sticky'
+            ? ''
+            : 'my-3 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 p-1 flex justify-center items-center shadow-lg'
         } ${className}`}
       >
         <iframe
           srcDoc={iframeHtml}
           style={{ width: '100%', height: frameHeight, border: 'none', overflow: 'hidden' }}
-          title={activeAd.title || 'Adsterra Advertisement'}
+          title={activeAd.title || 'Advertisement'}
           scrolling="no"
           onError={() => setHasError(true)}
         />
@@ -142,3 +158,4 @@ export const AdDisplay: React.FC<AdDisplayProps> = ({ ads, location, type, class
 
 
 
+    
