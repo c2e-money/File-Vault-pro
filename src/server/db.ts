@@ -142,7 +142,7 @@ const defaultSettings: WebsiteSettings = {
 
 function getInitialDb(): DatabaseSchema {
   const adminId = 'usr-admin-1';
-  const adminEmail = process.env.ADMIN_EMAIL || 'dipen8717@gmail.com';
+  const adminEmail = process.env.ADMIN_EMAIL || 'dipenshort@gmail.com';
   const adminPassword = process.env.ADMIN_PASSWORD || 'Dipen&Biswas9101';
   const adminPasswordHash = bcrypt.hashSync(adminPassword, 10);
 
@@ -216,7 +216,7 @@ class Database {
         const usersList: User[] = parsed.users || [];
         const passwordsDict = parsed.passwords || {};
 
-        const envAdminEmail = process.env.ADMIN_EMAIL || 'dipen8717@gmail.com';
+        const envAdminEmail = process.env.ADMIN_EMAIL || 'dipenshort@gmail.com';
         const envAdminPassword = process.env.ADMIN_PASSWORD || 'Dipen&Biswas9101';
 
         // Guarantee admin user uses updated credentials
