@@ -1,0 +1,6 @@
+{
+  "name": "FileVault",
+  "description": "Full-featured file upload, sharing and download platform with admin control panel, ad system, user auth, and real file storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
