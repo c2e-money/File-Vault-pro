@@ -180,7 +180,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
     }
   }, [isUnlocked, timer]);
 
-  // Trigger Smart Link helper
+  // Trigger Smart Link helper (Opens Ad in New Tab)
   const triggerSmartLink = () => {
     const targetUrl =
       smartLinkAd && smartLinkAd.isEnabled && smartLinkAd.code?.trim()
@@ -202,59 +202,36 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
   const handleDownloadClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
+    // 1. CPM BOOST: Trigger ad synchronously with user click.
     triggerSmartLink();
 
     const downloadUrl = api.getDownloadUrl(file.id, isUnlocked ? passwordInput : undefined);
 
-    if (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) {
-      const link = document.createElement('a');
-      link.href = file.filePath;
-      link.target = '_blank';
-      link.download = file.originalName || 'download';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      try {
-        const response = await fetch(downloadUrl);
-        if (response.ok) {
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = file.originalName || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-        } else {
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = file.originalName || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      } catch (err) {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = file.originalName || 'download';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    }
-
-    await api.incrementDownloadCount(file.id);
-
+    // 2. Increment stats asynchronously in the background.
+    api.incrementDownloadCount(file.id).catch(console.error);
     setLiveFile((prev) => ({
       ...prev,
       downloadsCount: (prev.downloadsCount || 0) + 1,
     }));
-
+    
     if (onDownloadSuccess) {
       onDownloadSuccess();
     }
+
+    // 3. FIXED DOWNLOAD LOGIC: Execute file download in current tab.
+    // Memory leak/browser crash fix for large files.
+    const finalUrl = (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) 
+      ? file.filePath 
+      : downloadUrl;
+
+    const link = document.createElement('a');
+    link.href = finalUrl;
+    link.download = file.originalName || 'download';
+    // Use _self so it downloads in the current page and doesn't trigger popup blockers twice
+    link.target = '_self'; 
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleCopyShareLink = () => {
@@ -497,3 +474,4 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
     </div>
   );
 };
+                
