@@ -487,9 +487,21 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shrink-0">
-                        <UploadCloud className="w-4 h-4" /v>
+                        <UploadCloud className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Upload Your File</h4>
+                        <p className="text-[10px] text-zinc-400">Share files free with instant download links</p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
 };
-                
