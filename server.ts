@@ -8,8 +8,6 @@ import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import QRCode from 'qrcode';
-import { google } from 'googleapis';
-import stream from 'stream';
 import { createServer as createViteServer } from 'vite';
 import { db } from './src/server/db.js';
 import { FileItem, User, Advertisement, Category, WebsiteSettings } from './src/types.js';
@@ -22,50 +20,34 @@ const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Static route to serve uploaded files directly if needed
+// Static route to serve uploaded files directly
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Configure Multer Memory Storage (RAM storage so Render's disk is never filled)
-const storage = multer.memoryStorage();
+// Configure Multer Disk Storage for Server Storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    cb(null, UPLOADS_DIR);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const sanitizedBase = path
+      .basename(file.originalname, ext)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_');
+    const uniqueSuffix = `${Date.now()}_${Math.round(Math.random() * 1e4)}`;
+    cb(null, `${sanitizedBase}_${uniqueSuffix}${ext}`);
+  },
+});
 
 const upload = multer({
   storage,
   limits: { fileSize: 1024 * 1024 * 1000 }, // 1 GB max
 });
 
-// Helper function to initialize Google Drive dynamically from Environment Variables or credentials.json
-function getGoogleDriveClient() {
-  try {
-    // 1. First priority: Render Environment Variables (Best for Cloud Deployment)
-    if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
-      const auth = new google.auth.GoogleAuth({
-        credentials: {
-          client_email: process.env.GOOGLE_CLIENT_EMAIL,
-          private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        },
-        scopes: ['https://www.googleapis.com/auth/drive.file'],
-      });
-      return google.drive({ version: 'v3', auth });
-    }
-
-    // 2. Fallback: Local credentials.json file
-    const keyPath = path.join(process.cwd(), 'credentials.json');
-    if (fs.existsSync(keyPath)) {
-      const auth = new google.auth.GoogleAuth({
-        keyFile: keyPath,
-        scopes: ['https://www.googleapis.com/auth/drive.file'],
-      });
-      return google.drive({ version: 'v3', auth });
-    }
-  } catch (e) {
-    console.error('Google Drive Auth initialization warning:', e);
-  }
-  return null;
-}
-
-const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1CM0Vq7SXrfaZsTHr4u8ufxqA2RLHT3ER';
-
-// Security Headers Middleware (Anti-Bypass, Anti-Clickjacking, Anti-XSS, MIME-Sniffing Defense)
+// Security Headers Middleware
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -75,7 +57,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Anti-Bypass & Brute-Force Protection Rate-Limiter Store
+// Anti-Bypass & Rate-Limiter Store
 interface LoginAttemptRecord {
   attempts: number;
   firstAttemptAt: number;
@@ -85,7 +67,6 @@ interface LoginAttemptRecord {
 const loginAttemptsStore = new Map<string, LoginAttemptRecord>();
 const DUMMY_BCRYPT_HASH = '$2a$10$e7xX4W4j6.k1J8uM3f.3O.S245u8v7p9g7.9u0z/c0g2b3a4c5d6e';
 
-// Periodic memory store cleanup
 setInterval(() => {
   const now = Date.now();
   loginAttemptsStore.forEach((record, key) => {
@@ -100,16 +81,13 @@ function checkRateLimit(key: string, maxAttempts = 5, windowMs = 15 * 60 * 1000,
   const record = loginAttemptsStore.get(key);
 
   if (!record) return { isLocked: false, remainingSeconds: 0 };
-
   if (record.lockedUntil > now) {
     return { isLocked: true, remainingSeconds: Math.ceil((record.lockedUntil - now) / 1000) };
   }
-
   if (now - record.firstAttemptAt > windowMs) {
     loginAttemptsStore.delete(key);
     return { isLocked: false, remainingSeconds: 0 };
   }
-
   return { isLocked: false, remainingSeconds: 0 };
 }
 
@@ -124,12 +102,10 @@ function recordFailedAttempt(key: string, maxAttempts = 5, windowMs = 15 * 60 * 
   }
 
   record.attempts += 1;
-
   if (record.attempts >= maxAttempts) {
     record.lockedUntil = now + lockoutMs;
     return { isNowLocked: true, remainingAttempts: 0 };
   }
-
   return { isNowLocked: false, remainingAttempts: maxAttempts - record.attempts };
 }
 
@@ -137,7 +113,6 @@ function clearLoginAttempts(key: string) {
   loginAttemptsStore.delete(key);
 }
 
-// Helper Authentication Middlewares
 interface AuthRequest extends Request {
   user?: User;
 }
@@ -155,27 +130,12 @@ function authenticateToken(req: AuthRequest, res: Response, next: NextFunction) 
     if (!err && decoded) {
       const database = db.getDb();
       const user = database.users.find(u => u.id === decoded.id && u.status === 'active');
-      // Anti-Bypass: Strict Role Re-Validation against active database record
       if (user && user.role === decoded.role) {
         req.user = user;
       }
     }
     next();
   });
-}
-
-function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  next();
-}
-
-function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Access denied: System Administrator privilege required' });
-  }
-  next();
 }
 
 app.use(authenticateToken);
@@ -197,7 +157,7 @@ app.post('/api/auth/login', (req, res) => {
   const limitStatus = checkRateLimit(rateKey, 10, 15 * 60 * 1000, 15 * 60 * 1000);
   if (limitStatus.isLocked) {
     return res.status(429).json({
-      error: `Too many failed login attempts. Account temporarily locked for security. Try again in ${Math.ceil(limitStatus.remainingSeconds / 60)} minute(s).`,
+      error: `Too many failed login attempts. Try again in ${Math.ceil(limitStatus.remainingSeconds / 60)} minute(s).`,
     });
   }
 
@@ -211,7 +171,7 @@ app.post('/api/auth/login', (req, res) => {
 
   if (!user || user.status === 'banned' || !isValid) {
     const failInfo = recordFailedAttempt(rateKey, 10);
-    db.logActivity('System', 'FAILED_USER_LOGIN', clientIp, `Failed user login attempt for identifier: ${cleanEmail}`);
+    db.logActivity('System', 'FAILED_USER_LOGIN', clientIp, `Failed login for: ${cleanEmail}`);
     return res.status(401).json({
       error: 'Invalid email or password',
       remainingAttempts: failInfo.remainingAttempts,
@@ -219,9 +179,7 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   clearLoginAttempts(rateKey);
-
   const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-
   db.logActivity(user.username, 'USER_LOGIN', clientIp, `User logged in`, user.id);
 
   res.json({ token, user });
@@ -235,23 +193,12 @@ app.post('/api/auth/admin-login', (req, res) => {
 
   const clientIp = req.ip || '127.0.0.1';
   const cleanEmail = email.trim().toLowerCase();
-  const isLocalIp = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
-  const ipRateKey = isLocalIp ? `admin_login_local:${cleanEmail}` : `admin_login_ip:${clientIp}`;
   const userRateKey = `admin_login_usr:${cleanEmail}`;
 
-  const ipLimit = checkRateLimit(ipRateKey, 5, 15 * 60 * 1000, 15 * 60 * 1000);
   const userLimit = checkRateLimit(userRateKey, 5, 15 * 60 * 1000, 15 * 60 * 1000);
-
-  if (ipLimit.isLocked || userLimit.isLocked) {
-    const lockTime = Math.max(ipLimit.remainingSeconds, userLimit.remainingSeconds);
-    db.logActivity(
-      'SECURITY_SYSTEM',
-      'ADMIN_LOCKOUT_TRIGGERED',
-      clientIp,
-      `Blocked brute force attack for admin identifier: ${cleanEmail}`
-    );
+  if (userLimit.isLocked) {
     return res.status(429).json({
-      error: `Security Lockout Triggered: Too many failed administrator login attempts. Access blocked for ${Math.ceil(lockTime / 60)} minute(s).`,
+      error: `Security Lockout: Too many failed attempts. Try again in ${Math.ceil(userLimit.remainingSeconds / 60)} minute(s).`,
     });
   }
 
@@ -264,28 +211,17 @@ app.post('/api/auth/admin-login', (req, res) => {
   const isValid = bcrypt.compareSync(password, passwordHash || DUMMY_BCRYPT_HASH);
 
   if (!user || user.status === 'banned' || !isValid) {
-    recordFailedAttempt(ipRateKey, 5);
     const userFailInfo = recordFailedAttempt(userRateKey, 5);
-
-    db.logActivity(
-      'SECURITY_SYSTEM',
-      'SUSPICIOUS_ADMIN_LOGIN_ATTEMPT',
-      clientIp,
-      `UNAUTHORIZED ADMIN LOGIN FAILURE for target: ${cleanEmail}`
-    );
-
+    db.logActivity('SECURITY_SYSTEM', 'ADMIN_LOGIN_FAILURE', clientIp, `Failed admin login for: ${cleanEmail}`);
     return res.status(401).json({
-      error: 'Invalid administrator credentials. Access attempt logged for security.',
+      error: 'Invalid administrator credentials',
       remainingAttempts: userFailInfo.remainingAttempts,
     });
   }
 
-  clearLoginAttempts(ipRateKey);
   clearLoginAttempts(userRateKey);
-
   const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-
-  db.logActivity(user.username, 'ADMIN_LOGIN', clientIp, `Administrator authenticated into system panel`, user.id);
+  db.logActivity(user.username, 'ADMIN_LOGIN', clientIp, `Admin authenticated`, user.id);
 
   res.json({ token, user });
 });
@@ -321,7 +257,6 @@ app.post('/api/auth/register', (req, res) => {
   db.save();
 
   const token = jwt.sign({ id: newUser.id, role: newUser.role }, JWT_SECRET, { expiresIn: '7d' });
-
   db.logActivity(newUser.username, 'USER_REGISTER', req.ip || '127.0.0.1', `New user registered`, newUser.id);
 
   res.json({ token, user: newUser });
@@ -335,10 +270,9 @@ app.get('/api/auth/me', (req: AuthRequest, res) => {
 });
 
 // ==========================================
-// 2. FILES API ROUTES (Google Drive Integration)
+// 2. FILES API ROUTES (Server Storage)
 // ==========================================
 
-// Get Files
 app.get('/api/files', (req: AuthRequest, res) => {
   const { search, category, sort, page = '1', limit = '12', scope } = req.query;
 
@@ -397,7 +331,6 @@ app.get('/api/files', (req: AuthRequest, res) => {
   });
 });
 
-// Get File By ID
 app.get('/api/files/:id', (req: AuthRequest, res) => {
   const database = db.getDb();
   const file = database.files.find(f => f.id === req.params.id);
@@ -415,7 +348,7 @@ app.get('/api/files/:id', (req: AuthRequest, res) => {
   res.json({ file: fileObj });
 });
 
-// Upload File (Single or Multiple with Direct Google Drive Streaming)
+// Upload File (Server Storage Direct)
 app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFunction) => {
   upload.array('files', 10)(req, res, async (err: any) => {
     if (err) {
@@ -434,61 +367,17 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
       const uploader = req.user ? req.user : { id: activeOwnerUid, username: 'Guest' };
 
       const createdFiles: FileItem[] = [];
-      const driveClient = getGoogleDriveClient();
 
       for (const file of reqFiles) {
-        let driveFileId = '';
-        let webViewLink = '';
-        let webContentLink = '';
-        let storageType: 'local' | 'drive' = 'local';
-
-        // Direct Stream Upload to Google Drive if client is authenticated
-        if (driveClient) {
-          try {
-            const bufferStream = new stream.PassThrough();
-            bufferStream.end(file.buffer);
-
-            const fileMetadata = {
-              name: file.originalname,
-              parents: [FOLDER_ID],
-            };
-            const media = {
-              mimeType: file.mimetype || 'application/octet-stream',
-              body: bufferStream,
-            };
-
-            const driveRes = await driveClient.files.create({
-              requestBody: fileMetadata,
-              media: media,
-              fields: 'id, name, webViewLink, webContentLink',
-            });
-
-            driveFileId = driveRes.data.id || '';
-            webViewLink = driveRes.data.webViewLink || '';
-            webContentLink = driveRes.data.webContentLink || '';
-            storageType = 'drive';
-
-            // Make uploaded Google Drive file publicly accessible for downloads
-            if (driveFileId) {
-              await driveClient.permissions.create({
-                fileId: driveFileId,
-                requestBody: { role: 'reader', type: 'anyone' },
-              });
-            }
-          } catch (driveErr) {
-            console.error('Google Drive stream upload failed:', driveErr);
-          }
-        }
-
-        const fileId = driveFileId || `file-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+        const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
         const parsedTags = typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
-        const finalDownloadUrl = webContentLink || webViewLink || `${req.protocol}://${req.get('host')}/uploads/${file.originalname}`;
+        const fileDownloadUrl = `${req.protocol}://${req.get('host')}/api/files/download-by-name/${file.filename}`;
 
         const newFile: FileItem = {
           id: fileId,
           originalName: file.originalname,
-          filename: fileId,
-          filePath: finalDownloadUrl,
+          filename: file.filename,
+          filePath: fileDownloadUrl,
           fileSize: file.size,
           mimeType: file.mimetype || 'application/octet-stream',
           category: category || 'Software & Apps',
@@ -504,7 +393,7 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
           scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
           downloadsCount: 0,
           viewsCount: 0,
-          storageType: storageType,
+          storageType: 'local',
           ratingAvg: 5.0,
           ratingCount: 1,
           createdAt: new Date().toISOString(),
@@ -516,17 +405,18 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
       }
 
       db.updateCategoryCounts();
+      db.save();
 
       db.logActivity(
         uploader.username,
         'FILE_UPLOAD',
         req.ip || '127.0.0.1',
-        `Uploaded ${createdFiles.length} file(s) to Google Drive/Server`,
+        `Uploaded ${createdFiles.length} file(s) to server storage`,
         uploader.id
       );
 
       return res.status(201).json({
-        message: 'Files uploaded successfully to Google Drive',
+        message: 'Files uploaded successfully to server storage',
         files: createdFiles,
       });
     } catch (handlerErr: any) {
@@ -534,25 +424,6 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
       return res.status(500).json({ error: handlerErr.message || 'Internal server error during upload' });
     }
   });
-});
-
-// Delete file directly from server disk by filename
-app.delete('/api/files/server-storage/:filename', (req, res) => {
-  const filename = req.params.filename;
-  if (!filename) return res.status(400).json({ error: 'Filename is required' });
-
-  const safeFilename = path.basename(filename);
-  const targetPath = path.join(UPLOADS_DIR, safeFilename);
-
-  if (fs.existsSync(targetPath)) {
-    try {
-      fs.unlinkSync(targetPath);
-      return res.json({ message: 'File deleted from server storage' });
-    } catch (err: any) {
-      return res.status(500).json({ error: err.message || 'Failed deleting physical file' });
-    }
-  }
-  return res.json({ message: 'File not found on server storage or already removed' });
 });
 
 // Stream/Download file from server disk by filename
@@ -640,3 +511,4 @@ async function startServer() {
 }
 
 startServer();
+    
