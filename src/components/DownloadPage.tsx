@@ -205,55 +205,20 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
   const handleDownloadClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // FIXED: Only open the Smart Link Ad ONCE per page load to prevent spam popups
+    // Trigger popup ONLY once
     if (!adTriggeredRef.current) {
       triggerSmartLink();
       adTriggeredRef.current = true;
     }
 
     const downloadUrl = api.getDownloadUrl(file.id, isUnlocked ? passwordInput : undefined);
+    
+    // Fallback to direct file path if available
+    const finalUrl = (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) 
+      ? file.filePath 
+      : downloadUrl;
 
-    // FIXED: RESTORED YOUR ORIGINAL DOWNLOAD LOGIC SO FILES DOWNLOAD PROPERLY
-    if (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) {
-      const link = document.createElement('a');
-      link.href = file.filePath;
-      link.target = '_blank';
-      link.download = file.originalName || 'download';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      try {
-        const response = await fetch(downloadUrl);
-        if (response.ok) {
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = file.originalName || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-        } else {
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = file.originalName || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      } catch (err) {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = file.originalName || 'download';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    }
-
-    // Increment Stats
+    // Increment Stats in background
     api.incrementDownloadCount(file.id).catch(console.error);
     setLiveFile((prev) => ({
       ...prev,
@@ -263,6 +228,16 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
     if (onDownloadSuccess) {
       onDownloadSuccess();
     }
+
+    // THE FIX: Mobile-Safe Download Logic
+    // No blobs, no fetch. Direct URL hand-off to the Android download manager.
+    const link = document.createElement('a');
+    link.href = finalUrl;
+    link.target = '_top'; // Opens securely without leaving annoying blank tabs
+    link.download = file.originalName || 'download';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleCopyShareLink = () => {
@@ -505,3 +480,4 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
     </div>
   );
 };
+  
