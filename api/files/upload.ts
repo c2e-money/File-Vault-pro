@@ -42,9 +42,8 @@ export default async function handler(req: any, res: any) {
 
     const { files }: any = await parseForm();
 
-    // Check credentials before calling Google API
     if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY || !process.env.GOOGLE_DRIVE_FOLDER_ID) {
-      return res.status(500).json({ error: "Google Drive environment variables are missing on Vercel." });
+      return res.status(500).json({ error: "Google Drive environment variables are missing." });
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -57,7 +56,6 @@ export default async function handler(req: any, res: any) {
 
     const drive = google.drive({ version: "v3", auth });
 
-    // Handle formidable structure safely
     const rawFiles = files.file || files.files;
     const uploadedFiles = Array.isArray(rawFiles) ? rawFiles : [rawFiles];
     const driveResponses = [];
@@ -83,15 +81,34 @@ export default async function handler(req: any, res: any) {
         body: fs.createReadStream(filePath),
       };
 
+      // 1. Upload to Drive (Added webContentLink)
       const response = await drive.files.create({
         requestBody: fileMetadata,
         media: media,
-        fields: "id, name, webViewLink",
+        fields: "id, name, webViewLink, webContentLink",
       });
 
-      driveResponses.push(response.data);
+      const fileId = response.data.id;
 
-      // Clean up local temp file safely
+      // 2. Make file public so users can download it
+      if (fileId) {
+        await drive.permissions.create({
+          fileId: fileId,
+          requestBody: { role: 'reader', type: 'anyone' },
+        });
+      }
+
+      // Tumhare frontend (api.js) ko filename aur downloadUrl chahiye
+      driveResponses.push({
+        id: fileId,
+        originalName: fileName,
+        filename: fileId, // Taki frontend file id save kare
+        fileSize: file.size || 0,
+        mimeType: mimeType,
+        downloadUrl: response.data.webContentLink || response.data.webViewLink,
+      });
+
+      // Clean up local temp file
       try {
         fs.unlinkSync(filePath);
       } catch (e) {
@@ -101,7 +118,7 @@ export default async function handler(req: any, res: any) {
 
     return res.status(201).json({
       message: "Files uploaded to Google Drive successfully",
-      files: driveResponses,
+      files: driveResponses, // Frontend api.js isko seedha read kar lega
     });
 
   } catch (error: any) {
