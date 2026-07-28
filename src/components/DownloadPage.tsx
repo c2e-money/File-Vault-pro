@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Download,
   ShieldCheck,
@@ -72,6 +72,9 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
 
   // Active Smart Link Ad unit check
   const smartLinkAd = ads.find((a) => a.isEnabled && a.type === 'smartlink');
+
+  // Popup control ref - To prevent multiple popups on repeated clicks
+  const adTriggeredRef = useRef(false);
 
   // Real-time Firestore document listener for file download count updates
   useEffect(() => {
@@ -202,36 +205,64 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
   const handleDownloadClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // 1. CPM BOOST: Trigger ad synchronously with user click.
-    triggerSmartLink();
+    // FIXED: Only open the Smart Link Ad ONCE per page load to prevent spam popups
+    if (!adTriggeredRef.current) {
+      triggerSmartLink();
+      adTriggeredRef.current = true;
+    }
 
     const downloadUrl = api.getDownloadUrl(file.id, isUnlocked ? passwordInput : undefined);
 
-    // 2. Increment stats asynchronously in the background.
+    // FIXED: RESTORED YOUR ORIGINAL DOWNLOAD LOGIC SO FILES DOWNLOAD PROPERLY
+    if (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) {
+      const link = document.createElement('a');
+      link.href = file.filePath;
+      link.target = '_blank';
+      link.download = file.originalName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      try {
+        const response = await fetch(downloadUrl);
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = file.originalName || 'download';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        } else {
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = file.originalName || 'download';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (err) {
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = file.originalName || 'download';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    // Increment Stats
     api.incrementDownloadCount(file.id).catch(console.error);
     setLiveFile((prev) => ({
       ...prev,
       downloadsCount: (prev.downloadsCount || 0) + 1,
     }));
-    
+
     if (onDownloadSuccess) {
       onDownloadSuccess();
     }
-
-    // 3. FIXED DOWNLOAD LOGIC: Execute file download in current tab.
-    // Memory leak/browser crash fix for large files.
-    const finalUrl = (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) 
-      ? file.filePath 
-      : downloadUrl;
-
-    const link = document.createElement('a');
-    link.href = finalUrl;
-    link.download = file.originalName || 'download';
-    // Use _self so it downloads in the current page and doesn't trigger popup blockers twice
-    link.target = '_self'; 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handleCopyShareLink = () => {
@@ -456,20 +487,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shrink-0">
-                        <UploadCloud className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-white">Upload Your File</h4>
-                        <p className="text-[10px] text-zinc-400">Share files free with instant download links</p>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </main>
-        </div>
+                        <UploadCloud className="w-4 h-4" /v>
       </div>
     </div>
   );
