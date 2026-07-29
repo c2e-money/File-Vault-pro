@@ -426,7 +426,7 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
   });
 });
 
-// Stream/Download file from server disk by filename
+// Stream/Download file from server disk by filename with Unique IP Check per File
 app.get('/api/files/download-by-name/:filename', (req: AuthRequest, res) => {
   const safeFilename = path.basename(req.params.filename);
   const filePath = path.join(UPLOADS_DIR, safeFilename);
@@ -437,20 +437,30 @@ app.get('/api/files/download-by-name/:filename', (req: AuthRequest, res) => {
 
   const database = db.getDb();
   const file = database.files.find(f => f.filename === safeFilename || f.filePath?.includes(safeFilename));
+  
   if (file) {
-    file.downloadsCount = (file.downloadsCount || 0) + 1;
-    database.downloads.unshift({
-      id: `dl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      fileId: file.id,
-      fileName: file.originalName,
-      userId: req.user?.id,
-      userName: req.user?.username || 'Anonymous',
-      ipAddress: req.ip || '127.0.0.1',
-      userAgent: req.headers['user-agent'] || 'Unknown',
-      downloadedAt: new Date().toISOString(),
-      durationSeconds: 1,
-    });
-    db.save();
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+    
+    // Check if this IP has already downloaded this specific file before
+    const alreadyDownloaded = database.downloads.some(
+      dl => dl.fileId === file.id && dl.ipAddress === clientIp
+    );
+
+    if (!alreadyDownloaded) {
+      file.downloadsCount = (file.downloadsCount || 0) + 1;
+      database.downloads.unshift({
+        id: `dl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        fileId: file.id,
+        fileName: file.originalName,
+        userId: req.user?.id,
+        userName: req.user?.username || 'Anonymous',
+        ipAddress: String(clientIp),
+        userAgent: req.headers['user-agent'] || 'Unknown',
+        downloadedAt: new Date().toISOString(),
+        durationSeconds: 1,
+      });
+      db.save();
+    }
   }
 
   const rawDisplayName = (req.query.name as string) || file?.originalName || safeFilename;
@@ -511,4 +521,4 @@ async function startServer() {
 }
 
 startServer();
-    
+                          
