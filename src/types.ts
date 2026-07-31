@@ -177,4 +177,21 @@ export interface AdminStats {
   recentUploads: FileItem[];
   recentDownloads: DownloadLog[];
   dailyDownloadsChart: { date: string; downloads: number; uploads: number }[];
-  }
+}
+
+export function getCleanSlug(name?: string): string {
+  if (!name) return 'file';
+  // Strip file extension first if present
+  const baseName = name.includes('.') ? name.substring(0, name.lastIndexOf('.')) : name;
+  const slug = baseName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'file';
+}
+
+export function getShareableDownloadUrl(file: { id: string; originalName?: string; filename?: string }): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const slug = getCleanSlug(file.originalName || file.filename);
+  return `${origin}/download/${slug}_${file.id}`;
+}
