@@ -1475,6 +1475,9 @@ export const api = {
       maintenanceMode: false,
       headerNotice: '',
       theme: 'dark',
+      whatsappNumber: '+918811896374',
+      telegramChannelUrl: 'https://t.me/+cOVh2XrT7nBlYTE1',
+      supportEmail: 'support@filevault.com',
     };
     await setDoc(doc(db, 'settings', 'global'), defaults);
     return defaults;
