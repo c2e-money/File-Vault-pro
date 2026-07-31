@@ -140,6 +140,9 @@ export interface WebsiteSettings {
   maintenanceMode: boolean;
   headerNotice: string;
   theme: 'dark' | 'light' | 'system';
+  whatsappNumber?: string;
+  telegramChannelUrl?: string;
+  supportEmail?: string;
   gdriveFolderId?: string;
   gdriveClientId?: string;
   gdriveClientSecret?: string;
@@ -174,4 +177,4 @@ export interface AdminStats {
   recentUploads: FileItem[];
   recentDownloads: DownloadLog[];
   dailyDownloadsChart: { date: string; downloads: number; uploads: number }[];
-}
+  }
