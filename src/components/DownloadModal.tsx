@@ -73,8 +73,11 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
   useEffect(() => {
     api.getSettings().then((s) => {
       if (s.telegramChannelUrl) setTelegramUrl(s.telegramChannelUrl);
+      if (typeof s.defaultDownloadTimer === 'number') {
+        setTimer(s.defaultDownloadTimer);
+      }
     }).catch(() => {});
-  }, []);
+  }, [file?.id]);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
