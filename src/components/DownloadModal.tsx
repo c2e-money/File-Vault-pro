@@ -68,6 +68,13 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [newRating, setNewRating] = useState(5);
+  const [telegramUrl, setTelegramUrl] = useState('https://t.me/+cOVh2XrT7nBlYTE1');
+
+  useEffect(() => {
+    api.getSettings().then((s) => {
+      if (s.telegramChannelUrl) setTelegramUrl(s.telegramChannelUrl);
+    }).catch(() => {});
+  }, []);
   const [submittingComment, setSubmittingComment] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -353,7 +360,7 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
 
                     {/* Join Premium Telegram Channel Card */}
                     <a
-                      href="https://t.me/+cOVh2XrT7nBlYTE1"
+                      href={telegramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block w-full p-3.5 rounded-2xl bg-gradient-to-r from-sky-950/90 via-blue-950/90 to-indigo-950/90 border border-sky-400/40 hover:border-sky-400 transition-all shadow-lg shadow-sky-950/50 group active:scale-[0.98] cursor-pointer text-left"
