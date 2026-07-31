@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase.js';
-import { FileItem, User, Advertisement } from '../types.js';
+import { FileItem, User, Advertisement, getShareableDownloadUrl } from '../types.js';
 import { getFileIcon, formatBytes } from './FileCard.js';
 import { api } from '../services/api.js';
 import { AdDisplay } from './AdDisplay.js';
@@ -235,7 +235,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
   };
 
   const handleCopyShareLink = () => {
-    const url = `${window.location.origin}/download/${file.id}`;
+    const url = getShareableDownloadUrl(file);
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
