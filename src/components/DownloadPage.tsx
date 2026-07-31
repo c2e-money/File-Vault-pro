@@ -187,7 +187,11 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
       document.body.removeChild(link);
     } else {
       try {
-        const response = await fetch(downloadUrl);
+        const response = await fetch(downloadUrl, {
+          headers: {
+            'x-visitor-id': api.getVisitorId(),
+          },
+        });
         if (response.ok) {
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
