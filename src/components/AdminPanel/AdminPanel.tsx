@@ -11,12 +11,18 @@ import {
   X,
   Upload,
   Settings,
+  Megaphone,
+  FolderTree,
+  Flag,
 } from 'lucide-react';
 import { AdminOverview } from './AdminOverview.js';
 import { AdminFilesManager } from './AdminFilesManager.js';
 import { AdminUsersManager } from './AdminUsersManager.js';
 import { AdminLogsManager } from './AdminLogsManager.js';
 import { AdminSettingsManager } from './AdminSettingsManager.js';
+import { AdminAdsManager } from './AdminAdsManager.js';
+import { AdminCategoriesManager } from './AdminCategoriesManager.js';
+import { AdminReportsManager } from './AdminReportsManager.js';
 import { User, Category, Advertisement } from '../../types.js';
 
 interface AdminPanelProps {
@@ -34,6 +40,9 @@ export type AdminTab =
   | 'overview'
   | 'files'
   | 'users'
+  | 'categories'
+  | 'ads'
+  | 'reports'
   | 'logs'
   | 'settings';
 
@@ -54,6 +63,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     { id: 'overview' as AdminTab, label: 'Overview', icon: LayoutDashboard },
     { id: 'users' as AdminTab, label: 'Users', icon: Users },
     { id: 'files' as AdminTab, label: 'Files', icon: Files },
+    { id: 'categories' as AdminTab, label: 'Categories', icon: FolderTree },
+    { id: 'ads' as AdminTab, label: 'Ads & Networks', icon: Megaphone },
+    { id: 'reports' as AdminTab, label: 'Reports', icon: Flag },
     { id: 'logs' as AdminTab, label: 'Logs', icon: Download },
     { id: 'settings' as AdminTab, label: 'Settings', icon: Settings },
   ];
@@ -226,6 +238,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         {activeTab === 'overview' && <AdminOverview onOpenUpload={onOpenUpload} />}
         {activeTab === 'files' && <AdminFilesManager categories={categories} onOpenUpload={onOpenUpload} />}
         {activeTab === 'users' && <AdminUsersManager currentUser={currentUser} />}
+        {activeTab === 'categories' && <AdminCategoriesManager categories={categories} onRefreshCategories={onRefreshCategories} />}
+        {activeTab === 'ads' && <AdminAdsManager ads={ads} onRefreshAds={onRefreshAds} />}
+        {activeTab === 'reports' && <AdminReportsManager />}
         {activeTab === 'logs' && <AdminLogsManager />}
         {activeTab === 'settings' && <AdminSettingsManager />}
       </main>
