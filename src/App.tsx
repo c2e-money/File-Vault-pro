@@ -494,6 +494,7 @@ export default function App() {
       <>
         <DownloadPage
           file={currentFileForDownload}
+          defaultTimerSeconds={siteSettings?.defaultDownloadTimer ?? 5}
           onBackToHome={() => {
             setDownloadRouteFileId(null);
             setSelectedFileForDownload(null);
