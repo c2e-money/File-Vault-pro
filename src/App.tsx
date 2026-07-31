@@ -34,7 +34,7 @@ import { DeleteConfirmationModal } from './components/DeleteConfirmationModal.js
 import { DownloadPage } from './components/DownloadPage.js';
 import { AdminPanel } from './components/AdminPanel/AdminPanel.js';
 import { AdminLoginPage } from './components/AdminPanel/AdminLoginPage.js';
-import { FileItem, User, Category, Advertisement } from './types.js';
+import { FileItem, User, Category, Advertisement, WebsiteSettings } from './types.js';
 import { api } from './services/api.js';
 import { auth } from './lib/firebase.js';
 
@@ -80,6 +80,7 @@ export default function App() {
   const [isDark, setIsDark] = useState(true);
 
   // Data collections
+  const [siteSettings, setSiteSettings] = useState<WebsiteSettings | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [ads, setAds] = useState<Advertisement[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -156,6 +157,8 @@ export default function App() {
     const unsubAds = api.subscribePublicAds((a) => {
       setAds(a);
     });
+
+    api.getSettings().then(setSiteSettings).catch(console.error);
 
     return () => {
       unsubUser();
@@ -568,9 +571,9 @@ export default function App() {
   }
 
   return (
-    <div className={`${isDark ? 'dark bg-zinc-950 text-zinc-100' : 'bg-slate-50 text-slate-900'} min-h-screen font-sans transition-colors pb-20 sm:pb-8`}>
+    <div className={`${isDark ? 'dark bg-zinc-950 text-zinc-100' : 'bg-slate-50 text-slate-900'} min-h-screen font-sans transition-colors pb-20 sm:pb-8 w-full max-w-full overflow-x-hidden`}>
       {/* Mobile-First App Layout Container */}
-      <div className="max-w-md sm:max-w-xl mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900/80 shadow-2xl flex flex-col justify-between relative">
+      <div className="w-full max-w-md sm:max-w-xl mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900/80 shadow-2xl flex flex-col justify-between relative overflow-x-hidden">
         
         <div>
           {/* Main Mobile App Navbar */}
@@ -686,28 +689,28 @@ export default function App() {
             <AdDisplay ads={ads} location="download_page_middle" type="native" />
 
             {/* WhatsApp Support Banner Card */}
-            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 border border-[#25D366]/40 flex items-center justify-center shrink-0 text-[#25D366]">
-                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-2.5 shadow-md max-w-full overflow-hidden">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#25D366]/20 border border-[#25D366]/40 flex items-center justify-center shrink-0 text-[#25D366]">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                     <path d="M12.012 2c-5.506 0-9.989 4.478-9.989 9.984 0 1.758.459 3.474 1.33 4.982L2 22l5.176-1.338c1.45.79 3.097 1.222 4.836 1.222 5.506 0 9.989-4.478 9.989-9.984s-4.483-9.984-9.989-9.984zm0 18.281c-1.503 0-2.981-.403-4.275-1.168l-.307-.182-3.176.821.849-3.093-.2-.318A8.257 8.257 0 0 1 3.722 11.98c0-4.57 3.719-8.284 8.29-8.284 4.571 0 8.29 3.714 8.29 8.284 0 4.571-3.719 8.281-8.29 8.281zm4.542-6.206c-.249-.125-1.472-.726-1.7-.809-.228-.083-.394-.125-.56.125-.166.249-.643.809-.788.975-.145.166-.29.187-.539.062a6.792 6.792 0 0 1-1.998-1.233 7.488 7.488 0 0 1-1.383-1.722c-.145-.249-.016-.384.109-.508.112-.112.249-.29.373-.435.125-.145.166-.249.249-.415.083-.166.042-.311-.021-.435-.062-.125-.56-1.349-.768-1.847-.203-.486-.41-.42-.56-.427h-.477c-.166 0-.435.062-.664.311-.228.249-.871.851-.871 2.075 0 1.224.892 2.407 1.016 2.573.125.166 1.756 2.682 4.254 3.761.594.257 1.058.41 1.42.525.597.19 1.141.163 1.571.099.479-.071 1.472-.602 1.68-1.183.208-.581.208-1.079.145-1.183-.063-.104-.228-.166-.477-.291z"/>
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h4 className="text-xs font-black text-white flex items-center gap-1.5">
                     WhatsApp Support
-                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">24/7 Active</span>
+                    <span className="px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 whitespace-nowrap">24/7</span>
                   </h4>
-                  <p className="text-[11px] text-emerald-200/80">Need help? SMS +918811896374 on WhatsApp</p>
+                  <p className="text-[10px] sm:text-[11px] text-emerald-200/80 truncate">SMS {siteSettings?.whatsappNumber || '+918811896374'} on WhatsApp</p>
                 </div>
               </div>
               <a
-                href="https://wa.me/918811896374?text=Hello%20FileVault%20Support"
+                href={`https://wa.me/${(siteSettings?.whatsappNumber || '+918811896374').replace(/[^0-9]/g, '')}?text=Hello%20FileVault%20Support`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-md transition shrink-0 flex items-center gap-1.5 cursor-pointer"
+                className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-md transition shrink-0 flex items-center gap-1 cursor-pointer whitespace-nowrap"
               >
-                <span>Chat Now</span>
+                <span>Chat</span>
               </a>
             </div>
 
@@ -931,11 +934,11 @@ export default function App() {
 
       {/* Floating WhatsApp Support Button */}
       <a
-        href="https://wa.me/918811896374?text=Hello%20FileVault%20Support"
+        href={`https://wa.me/${(siteSettings?.whatsappNumber || '+918811896374').replace(/[^0-9]/g, '')}?text=Hello%20FileVault%20Support`}
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-20 right-4 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white px-3.5 py-2.5 rounded-full shadow-xl shadow-emerald-950/60 font-bold text-xs transition-all transform hover:scale-105 active:scale-95 cursor-pointer border border-emerald-400/40"
-        title="Contact Support on WhatsApp (+918811896374)"
+        title={`Contact Support on WhatsApp (${siteSettings?.whatsappNumber || '+918811896374'})`}
       >
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
           <path d="M12.012 2c-5.506 0-9.989 4.478-9.989 9.984 0 1.758.459 3.474 1.33 4.982L2 22l5.176-1.338c1.45.79 3.097 1.222 4.836 1.222 5.506 0 9.989-4.478 9.989-9.984s-4.483-9.984-9.989-9.984zm0 18.281c-1.503 0-2.981-.403-4.275-1.168l-.307-.182-3.176.821.849-3.093-.2-.318A8.257 8.257 0 0 1 3.722 11.98c0-4.57 3.719-8.284 8.29-8.284 4.571 0 8.29 3.714 8.29 8.284 0 4.571-3.719 8.281-8.29 8.281zm4.542-6.206c-.249-.125-1.472-.726-1.7-.809-.228-.083-.394-.125-.56.125-.166.249-.643.809-.788.975-.145.166-.29.187-.539.062a6.792 6.792 0 0 1-1.998-1.233 7.488 7.488 0 0 1-1.383-1.722c-.145-.249-.016-.384.109-.508.112-.112.249-.29.373-.435.125-.145.166-.249.249-.415.083-.166.042-.311-.021-.435-.062-.125-.56-1.349-.768-1.847-.203-.486-.41-.42-.56-.427h-.477c-.166 0-.435.062-.664.311-.228.249-.871.851-.871 2.075 0 1.224.892 2.407 1.016 2.573.125.166 1.756 2.682 4.254 3.761.594.257 1.058.41 1.42.525.597.19 1.141.163 1.571.099.479-.071 1.472-.602 1.68-1.183.208-.581.208-1.079.145-1.183-.063-.104-.228-.166-.477-.291z"/>
