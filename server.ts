@@ -518,6 +518,103 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
   });
 });
 
+// Create MediaFire / External Cloud Link File Entry
+app.post('/api/files/external-link', (req: AuthRequest, res) => {
+  try {
+    const {
+      originalName,
+      externalUrl,
+      fileSize,
+      category,
+      description,
+      tags,
+      isPasswordProtected,
+      password,
+      isDraft,
+      scheduledAt
+    } = req.body;
+
+    if (!originalName || !externalUrl) {
+      return res.status(400).json({ error: 'Original name and external URL are required' });
+    }
+
+    const database = db.getDb();
+    const activeOwnerUid = (req.headers['x-user-uid'] as string) || req.user?.id || 'usr-guest';
+    const uploader = req.user || { id: activeOwnerUid, username: req.body.uploaderName || 'Anonymous', role: 'user' };
+
+    const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const parsedTags = Array.isArray(tags)
+      ? tags
+      : typeof tags === 'string'
+      ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      : [];
+
+    let parsedSize = 1024 * 1024; // default 1MB
+    if (typeof fileSize === 'number' && fileSize > 0) {
+      parsedSize = fileSize;
+    } else if (typeof fileSize === 'string') {
+      const num = parseFloat(fileSize);
+      if (!isNaN(num)) {
+        if (fileSize.toLowerCase().includes('gb')) parsedSize = Math.round(num * 1024 * 1024 * 1024);
+        else if (fileSize.toLowerCase().includes('kb')) parsedSize = Math.round(num * 1024);
+        else if (fileSize.toLowerCase().includes('mb')) parsedSize = Math.round(num * 1024 * 1024);
+        else parsedSize = Math.round(num);
+      }
+    }
+
+    const isMediaFire = externalUrl.toLowerCase().includes('mediafire.com');
+    const storageType = isMediaFire ? 'mediafire' : 'external_link';
+
+    const newFile: FileItem = {
+      id: fileId,
+      originalName: originalName.trim(),
+      filename: `external-${fileId}`,
+      filePath: externalUrl.trim(),
+      fileSize: parsedSize,
+      mimeType: 'application/octet-stream',
+      category: category || 'Software & Apps',
+      ownerUid: activeOwnerUid,
+      uploaderId: activeOwnerUid,
+      uploaderName: uploader.username,
+      description: description || '',
+      tags: parsedTags,
+      isPasswordProtected: Boolean(isPasswordProtected),
+      password: password || '',
+      isDraft: Boolean(isDraft),
+      isFeatured: false,
+      scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      downloadsCount: 0,
+      viewsCount: 0,
+      storageType: storageType,
+      externalUrl: externalUrl.trim(),
+      driveDownloadUrl: externalUrl.trim(),
+      ratingAvg: 5.0,
+      ratingCount: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    database.files.unshift(newFile);
+    db.updateCategoryCounts();
+
+    db.logActivity(
+      uploader.username,
+      'FILE_UPLOAD',
+      req.ip || '127.0.0.1',
+      `Added ${isMediaFire ? 'MediaFire' : 'External'} link file: ${newFile.originalName}`,
+      uploader.id
+    );
+
+    return res.status(201).json({
+      message: 'External link file added successfully',
+      file: newFile,
+    });
+  } catch (err: any) {
+    console.error('Error adding external link file:', err);
+    return res.status(500).json({ error: err.message || 'Server error adding external link file' });
+  }
+});
+
 // Delete file directly from server disk by filename
 app.delete('/api/files/server-storage/:filename', (req, res) => {
   const filename = req.params.filename;
@@ -559,19 +656,40 @@ app.get('/api/admin/drive-status', async (req: AuthRequest, res) => {
   res.json(status);
 });
 
-// Enforce Strict Per File 1 IP Address = 1 Download Count Rule
+// Enforce Unique Per User/Visitor Download Count Rule (1 download per user per file)
 function registerFileDownload(file: any, req: AuthRequest) {
   const database = db.getDb();
   const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || '127.0.0.1';
   const clientIp = rawIp.replace(/^::ffff:/, '');
 
+  const userId = req.user?.id || (req.headers['x-user-uid'] as string) || (req.query.userId as string);
+  const visitorId = (req.headers['x-visitor-id'] as string) || (req.query.visitorId as string) || (req.body?.visitorId as string);
+
+  const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost';
   const fileKey = file.id || file.filename;
 
-  const existingDownload = database.downloads.find(
-    (d: any) =>
-      (d.fileId === file.id || d.fileId === file.filename || (file.driveFileId && d.fileId === file.driveFileId) || d.fileName === file.originalName || d.fileName === file.filename) &&
-      (d.ipAddress === clientIp || d.ipAddress === rawIp)
-  );
+  const existingDownload = database.downloads.find((d: any) => {
+    const isSameFile =
+      d.fileId === file.id ||
+      d.fileId === file.filename ||
+      (file.driveFileId && d.fileId === file.driveFileId) ||
+      d.fileName === file.originalName ||
+      d.fileName === file.filename;
+
+    if (!isSameFile) return false;
+
+    if (userId && d.userId && d.userId === userId) {
+      return true;
+    }
+    if (visitorId && d.visitorId && d.visitorId === visitorId) {
+      return true;
+    }
+    if (!isLoopback && d.ipAddress && (d.ipAddress === clientIp || d.ipAddress === rawIp)) {
+      return true;
+    }
+
+    return false;
+  });
 
   if (!existingDownload) {
     file.downloadsCount = (file.downloadsCount || 0) + 1;
@@ -579,7 +697,8 @@ function registerFileDownload(file: any, req: AuthRequest) {
       id: `dl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       fileId: fileKey,
       fileName: file.originalName || file.filename,
-      userId: req.user?.id,
+      userId: userId || undefined,
+      visitorId: visitorId || undefined,
       userName: req.user?.username || 'Anonymous',
       ipAddress: clientIp,
       userAgent: req.headers['user-agent'] || 'Unknown',
@@ -695,22 +814,31 @@ app.post('/api/files/:id/increment-download', (req: AuthRequest, res) => {
     });
   }
 
-  // If file record was stored in client/Firestore, register download strictly by IP for target ID
+  // If file record was stored in client/Firestore, register download strictly by userId/visitorId/IP for target ID
+  const userId = req.user?.id || (req.headers['x-user-uid'] as string) || (req.query.userId as string);
+  const visitorId = (req.headers['x-visitor-id'] as string) || (req.query.visitorId as string) || (req.body?.visitorId as string);
   const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || '127.0.0.1';
   const clientIp = rawIp.replace(/^::ffff:/, '');
+  const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === 'localhost';
 
-  const existingDownload = database.downloads.find(
-    (d: any) =>
-      (d.fileId === req.params.id || (qFilename && d.fileId === qFilename)) &&
-      (d.ipAddress === clientIp || d.ipAddress === rawIp)
-  );
+  const existingDownload = database.downloads.find((d: any) => {
+    const isSameFile = d.fileId === req.params.id || (qFilename && d.fileId === qFilename);
+    if (!isSameFile) return false;
+
+    if (userId && d.userId && d.userId === userId) return true;
+    if (visitorId && d.visitorId && d.visitorId === visitorId) return true;
+    if (!isLoopback && d.ipAddress && (d.ipAddress === clientIp || d.ipAddress === rawIp)) return true;
+
+    return false;
+  });
 
   if (!existingDownload) {
     database.downloads.unshift({
       id: `dl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       fileId: req.params.id,
       fileName: qFilename || req.params.id,
-      userId: req.user?.id,
+      userId: userId || undefined,
+      visitorId: visitorId || undefined,
       userName: req.user?.username || 'Anonymous',
       ipAddress: clientIp,
       userAgent: req.headers['user-agent'] || 'Unknown',
@@ -740,7 +868,7 @@ app.put('/api/files/:id/edit', (req: AuthRequest, res) => {
     return res.status(403).json({ error: 'Permission denied. You can only edit your own files.' });
   }
 
-  const { originalName, category, description, tags, isPasswordProtected, password, isDraft, isFeatured, scheduledAt } = req.body;
+  const { originalName, category, description, tags, isPasswordProtected, password, isDraft, isFeatured, scheduledAt, externalUrl, fileSize } = req.body;
 
   if (originalName) file.originalName = originalName;
   if (category) file.category = category;
@@ -753,6 +881,28 @@ app.put('/api/files/:id/edit', (req: AuthRequest, res) => {
   if (isDraft !== undefined) file.isDraft = !!isDraft;
   if (isFeatured !== undefined) file.isFeatured = !!isFeatured;
   if (scheduledAt !== undefined) file.scheduledAt = scheduledAt ? new Date(scheduledAt).toISOString() : null;
+  if (externalUrl) {
+    file.externalUrl = externalUrl.trim();
+    file.filePath = externalUrl.trim();
+    file.driveDownloadUrl = externalUrl.trim();
+    if (externalUrl.toLowerCase().includes('mediafire.com')) {
+      file.storageType = 'mediafire';
+    } else {
+      file.storageType = 'external_link';
+    }
+  }
+  if (fileSize) {
+    if (typeof fileSize === 'number' && fileSize > 0) file.fileSize = fileSize;
+    else if (typeof fileSize === 'string') {
+      const num = parseFloat(fileSize);
+      if (!isNaN(num)) {
+        if (fileSize.toLowerCase().includes('gb')) file.fileSize = Math.round(num * 1024 * 1024 * 1024);
+        else if (fileSize.toLowerCase().includes('kb')) file.fileSize = Math.round(num * 1024);
+        else if (fileSize.toLowerCase().includes('mb')) file.fileSize = Math.round(num * 1024 * 1024);
+        else file.fileSize = Math.round(num);
+      }
+    }
+  }
 
   file.updatedAt = new Date().toISOString();
 
@@ -902,6 +1052,14 @@ app.get('/api/files/:id/download', async (req: AuthRequest, res) => {
 
   // Register download count uniquely per IP address
   registerFileDownload(file, req);
+
+  // External URL or MediaFire Link redirect
+  if (file.externalUrl || file.storageType === 'mediafire' || file.storageType === 'external_link' || (file.filePath && file.filePath.startsWith('http'))) {
+    const targetRedirectUrl = file.externalUrl || file.filePath || file.driveDownloadUrl;
+    if (targetRedirectUrl) {
+      return res.redirect(302, targetRedirectUrl);
+    }
+  }
 
   // If file is stored in Google Drive, stream directly from Google Drive API
   if (file.driveFileId) {
