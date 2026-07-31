@@ -29,6 +29,7 @@ import {
   WebsiteSettings,
   ActivityLog,
   AdminStats,
+  getShareableDownloadUrl,
 } from '../types.js';
 
 const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
@@ -557,7 +558,11 @@ export const api = {
   },
 
   async getFileById(id: string): Promise<FileItem> {
-    const docSnap = await getDoc(doc(db, 'files', id));
+    const targetId = id && id.includes('_') ? id.split('_').pop()! : id;
+    let docSnap = await getDoc(doc(db, 'files', targetId));
+    if (!docSnap.exists() && targetId !== id) {
+      docSnap = await getDoc(doc(db, 'files', id));
+    }
     if (!docSnap.exists()) {
       throw new Error('File not found in database');
     }
@@ -992,7 +997,11 @@ export const api = {
   },
 
   async getQRCode(id: string): Promise<{ qrCode: string; url: string }> {
-    const shareUrl = `${window.location.origin}/#file-${id}`;
+    let fileItem: FileItem | null = null;
+    try {
+      fileItem = await this.getFileById(id);
+    } catch {}
+    const shareUrl = fileItem ? getShareableDownloadUrl(fileItem) : `${window.location.origin}/download/${id}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(shareUrl)}`;
     return { qrCode: qrCodeUrl, url: shareUrl };
   },
