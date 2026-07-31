@@ -17,7 +17,7 @@ import {
   Sparkles,
   Folder,
 } from 'lucide-react';
-import { User, FileItem } from '../types.js';
+import { User, FileItem, getShareableDownloadUrl } from '../types.js';
 import { auth } from '../lib/firebase.js';
 import { api } from '../services/api.js';
 
@@ -87,7 +87,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   );
 
   const handleCopyLink = (f: FileItem) => {
-    const url = `${window.location.origin}/download/${f.id}`;
+    const url = getShareableDownloadUrl(f);
     navigator.clipboard.writeText(url);
     setCopiedId(f.id);
     setTimeout(() => setCopiedId(null), 2000);
