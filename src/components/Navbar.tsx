@@ -47,22 +47,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showSearch, setShowSearch] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 transition-colors">
-      <div className="flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-2.5 sm:px-4 py-2.5 sm:py-3 transition-colors overflow-hidden max-w-full">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3 max-w-full">
         {/* Brand Logo */}
         <button
           onClick={onGoHome}
-          className="flex items-center gap-2.5 text-left focus:outline-none group shrink-0"
+          className="flex items-center gap-1.5 sm:gap-2.5 text-left focus:outline-none group shrink-0"
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-0.5 shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-0.5 shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
             <div className="w-full h-full bg-zinc-950 rounded-[10px] flex items-center justify-center">
-              <HardDriveUpload className="w-4 h-4 text-indigo-400" />
+              <HardDriveUpload className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />
             </div>
           </div>
           <div>
-            <span className="text-base font-black tracking-tight text-white flex items-center gap-1">
+            <span className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-1">
               File<span className="text-indigo-400">Vault</span>
-              <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold px-1.5 py-0.2 rounded uppercase">
+              <span className="text-[8px] sm:text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold px-1 py-0.2 rounded uppercase">
                 App
               </span>
             </span>
@@ -70,24 +70,24 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Search Toggle */}
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`p-2 rounded-xl transition border ${
+            className={`p-1.5 sm:p-2 rounded-xl transition border ${
               showSearch || searchQuery
                 ? 'bg-indigo-600 text-white border-indigo-500'
                 : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'
             }`}
             title="Toggle Search"
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
 
           {/* Quick Upload Button */}
           <button
             onClick={onOpenUpload}
-            className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/20 active:scale-95 transition"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] sm:text-xs font-bold rounded-xl shadow-md shadow-indigo-600/20 active:scale-95 transition"
           >
             <Upload className="w-3.5 h-3.5" />
             <span>Upload</span>
@@ -96,15 +96,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-xl transition"
+            className="p-1.5 sm:p-2 text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800 rounded-xl transition"
             title="Toggle Theme"
           >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+            {isDark ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400" />}
           </button>
 
           {/* User Profile or Auth */}
           {user ? (
-            <div className="flex items-center gap-1.5 pl-1.5 border-l border-zinc-800">
+            <div className="flex items-center gap-1 pl-1 border-l border-zinc-800">
               <button
                 onClick={onOpenAuth}
                 className="flex items-center gap-1 hover:opacity-80 transition"
@@ -113,12 +113,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <img
                   src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
                   alt={user.username}
-                  className="w-7 h-7 rounded-lg object-cover border border-zinc-700"
+                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg object-cover border border-zinc-700"
                 />
               </button>
               <button
                 onClick={onLogout}
-                className="p-1.5 text-zinc-400 hover:text-rose-400 rounded-lg transition"
+                className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg transition"
                 title="Logout"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -127,7 +127,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={onOpenAuth}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 text-xs font-semibold rounded-xl transition"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 text-[11px] sm:text-xs font-semibold rounded-xl transition"
             >
               <UserIcon className="w-3.5 h-3.5" />
               <span>Login</span>
