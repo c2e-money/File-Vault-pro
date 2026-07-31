@@ -22,7 +22,6 @@ import {
 import { Navbar } from './components/Navbar.js';
 import { Footer } from './components/Footer.js';
 import { FileCard } from './components/FileCard.js';
-import { AdDisplay } from './components/AdDisplay.js';
 import { FileUploadModal } from './components/FileUploadModal.js';
 import { DownloadModal } from './components/DownloadModal.js';
 import { QRCodeModal } from './components/QRCodeModal.js';
@@ -34,7 +33,7 @@ import { DeleteConfirmationModal } from './components/DeleteConfirmationModal.js
 import { DownloadPage } from './components/DownloadPage.js';
 import { AdminPanel } from './components/AdminPanel/AdminPanel.js';
 import { AdminLoginPage } from './components/AdminPanel/AdminLoginPage.js';
-import { FileItem, User, Category, Advertisement, WebsiteSettings } from './types.js';
+import { FileItem, User, Category, Advertisement, WebsiteSettings, getShareableDownloadUrl } from './types.js';
 import { api } from './services/api.js';
 import { auth } from './lib/firebase.js';
 
@@ -56,13 +55,19 @@ function getInitialRouteState() {
   } else if (urlParams.get('file')) {
     downloadFileId = urlParams.get('file');
   } else if (pathname.startsWith('/download/')) {
-    downloadFileId = pathname.replace('/download/', '').split('/')[0] || null;
+    downloadFileId = decodeURIComponent(pathname.replace('/download/', '')).split('/')[0] || null;
   } else if (pathname.startsWith('/file/')) {
-    downloadFileId = pathname.replace('/file/', '').split('/')[0] || null;
+    downloadFileId = decodeURIComponent(pathname.replace('/file/', '')).split('/')[0] || null;
   } else if (hash.startsWith('#download-')) {
     downloadFileId = hash.replace('#download-', '') || null;
   } else if (hash.startsWith('#file-')) {
     downloadFileId = hash.replace('#file-', '') || null;
+  }
+
+  // Extract real file ID if formatted as slug_fileId
+  if (downloadFileId && downloadFileId.includes('_')) {
+    const parts = downloadFileId.split('_');
+    downloadFileId = parts[parts.length - 1] || downloadFileId;
   }
 
   return { isAdmin, downloadFileId };
@@ -610,9 +615,6 @@ export default function App() {
 
           <main className="px-4 py-4 space-y-5">
             
-            {/* User Dashboard Header Advertisement */}
-            <AdDisplay ads={ads} location="header_top" type="banner" />
-
             {/* Fast Upload Hero Banner */}
             <div className="bg-gradient-to-br from-indigo-950/90 via-zinc-900 to-purple-950/90 border border-indigo-500/30 rounded-2xl p-4 shadow-xl text-center space-y-3 relative overflow-hidden">
               <div className="flex items-center justify-between border-b border-indigo-500/20 pb-2">
@@ -685,9 +687,6 @@ export default function App() {
                 ))}
               </div>
             </div>
-
-            {/* Dashboard Middle Native Ad */}
-            <AdDisplay ads={ads} location="download_page_middle" type="native" />
 
             {/* WhatsApp Support Banner Card */}
             <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-2.5 shadow-md max-w-full overflow-hidden">
@@ -790,11 +789,13 @@ export default function App() {
                         setDownloadRouteFileId(f.id);
                         setSelectedFileForDownload(f);
                         setLoadingDownloadFile(false);
-                        window.history.pushState({}, '', `/download/${f.id}`);
+                        const shareUrl = getShareableDownloadUrl(f);
+                        window.history.pushState({}, '', shareUrl);
                       }}
                       onShare={(f) => {
-                        navigator.clipboard.writeText(`${window.location.origin}/download/${f.id}`);
-                        alert(`Share link copied to clipboard!`);
+                        const shareUrl = getShareableDownloadUrl(f);
+                        navigator.clipboard.writeText(shareUrl);
+                        alert(`Share link copied to clipboard!\n${shareUrl}`);
                       }}
                       onDelete={(f) => {
                         setFileToDelete(f);
@@ -806,11 +807,6 @@ export default function App() {
             </div>
 
           </main>
-        </div>
-
-        {/* Sticky Bottom Advertisement Bar for Dashboard */}
-        <div className="px-4 pb-2">
-          <AdDisplay ads={ads} type="sticky" className="w-full text-center" />
         </div>
 
         {/* Mobile App Footer */}
