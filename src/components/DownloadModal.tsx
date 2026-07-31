@@ -19,7 +19,7 @@ import {
   RefreshCw,
   ArrowRight,
 } from 'lucide-react';
-import { FileItem, User, Comment, Advertisement } from '../types.js';
+import { FileItem, User, Comment, Advertisement, getShareableDownloadUrl } from '../types.js';
 import { getFileIcon, formatBytes } from './FileCard.js';
 import { api } from '../services/api.js';
 import { AdDisplay } from './AdDisplay.js';
@@ -148,7 +148,7 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
   };
 
   const handleCopyLink = () => {
-    const downloadUrl = `${window.location.origin}/#file-${file.id}`;
+    const downloadUrl = getShareableDownloadUrl(file);
     navigator.clipboard.writeText(downloadUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
