@@ -137,6 +137,9 @@ const defaultSettings: WebsiteSettings = {
   maintenanceMode: false,
   headerNotice: '⚡ Welcome to FileVault! High-speed, secure file hosting with direct resume downloads.',
   theme: 'dark',
+  whatsappNumber: '+918811896374',
+  telegramChannelUrl: 'https://t.me/+cOVh2XrT7nBlYTE1',
+  supportEmail: 'support@filevault.com',
 };
 
 function getInitialDb(): DatabaseSchema {
