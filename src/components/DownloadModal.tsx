@@ -17,6 +17,7 @@ import {
   Copy,
   ExternalLink,
   RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 import { FileItem, User, Comment, Advertisement } from '../types.js';
 import { getFileIcon, formatBytes } from './FileCard.js';
@@ -349,6 +350,38 @@ export const DownloadModal: React.FC<DownloadModalProps> = ({
                         <Flag className="w-3.5 h-3.5" /> Report File
                       </button>
                     </div>
+
+                    {/* Join Premium Telegram Channel Card */}
+                    <a
+                      href="https://t.me/+cOVh2XrT7nBlYTE1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full p-3.5 rounded-2xl bg-gradient-to-r from-sky-950/90 via-blue-950/90 to-indigo-950/90 border border-sky-400/40 hover:border-sky-400 transition-all shadow-lg shadow-sky-950/50 group active:scale-[0.98] cursor-pointer text-left"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 shrink-0 group-hover:scale-105 transition-transform">
+                            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.38-.49 1.03-.75 4.03-1.75 6.72-2.91 8.08-3.48 3.85-1.6 4.65-1.88 5.17-1.89.11 0 .37.03.54.17.14.12.18.28.2.45-.02.07-.02.13-.03.22z"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <h4 className="text-xs font-black text-white group-hover:text-sky-300 transition-colors">
+                                Join Premium Telegram
+                              </h4>
+                              <span className="px-1.5 py-0.2 rounded text-[8px] font-black uppercase bg-amber-400 text-zinc-950">
+                                VIP
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-sky-200/80">
+                              Get exclusive files & direct VIP downloads!
+                            </p>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-sky-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                      </div>
+                    </a>
                   </div>
                 )}
 
