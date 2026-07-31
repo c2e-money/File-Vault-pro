@@ -1349,8 +1349,18 @@ app.get('/sitemap.xml', (req, res) => {
 });
 
 // ==========================================
-// 7. VITE DEVELOPMENT / PRODUCTION MIDDLEWARE
+// 7. VITE DEVELOPMENT / PRODUCTION MIDDLEWARE & SPA FALLBACK
 // ==========================================
+
+// Explicit SPA fallback routes for download links, file links, and admin paths
+app.get(['/download/*', '/file/*', '/d/*', '/admin*'], (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') {
+    req.url = '/';
+    return next();
+  }
+  const distPath = path.join(process.cwd(), 'dist');
+  return res.sendFile(path.join(distPath, 'index.html'));
+});
 
 async function start() {
   if (process.env.NODE_ENV !== 'production') {
@@ -1362,7 +1372,7 @@ async function start() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
