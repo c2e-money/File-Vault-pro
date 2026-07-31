@@ -63,7 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-1">
               File<span className="text-indigo-400">Vault</span>
               <span className="text-[8px] sm:text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold px-1 py-0.2 rounded uppercase">
-                App
+                Pro
               </span>
             </span>
           </div>
