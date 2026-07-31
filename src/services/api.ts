@@ -761,6 +761,84 @@ export const api = {
     };
   },
 
+  async addExternalLinkFile(data: {
+    originalName: string;
+    externalUrl: string;
+    fileSize?: string | number;
+    category?: string;
+    description?: string;
+    tags?: string;
+    isPasswordProtected?: boolean;
+    password?: string;
+    isDraft?: boolean;
+    scheduledAt?: string;
+  }): Promise<{ message: string; file: FileItem }> {
+    const currentUser = await this.getCurrentUser();
+    const activeUid = auth.currentUser?.uid || currentUser?.id || 'guest';
+    const uploaderName = currentUser?.username || currentUser?.email || auth.currentUser?.email || 'Anonymous';
+
+    const isMediaFire = data.externalUrl.toLowerCase().includes('mediafire.com');
+
+    const res = await fetch('/api/files/external-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-uid': activeUid,
+      },
+      body: JSON.stringify({
+        ...data,
+        uploaderName,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to add external link file');
+    }
+
+    const result = await res.json();
+    const serverFile: FileItem = result.file;
+
+    try {
+      const fileDocRef = doc(db, 'files', serverFile.id);
+      await setDoc(fileDocRef, {
+        originalName: serverFile.originalName,
+        filename: serverFile.filename,
+        filePath: serverFile.filePath,
+        fileSize: serverFile.fileSize,
+        mimeType: 'application/octet-stream',
+        category: serverFile.category,
+        description: serverFile.description || '',
+        tags: serverFile.tags || [],
+        isPasswordProtected: serverFile.isPasswordProtected,
+        password: serverFile.password || '',
+        isDraft: serverFile.isDraft,
+        isFeatured: false,
+        scheduledAt: serverFile.scheduledAt || null,
+        downloadsCount: 0,
+        viewsCount: 0,
+        storageType: serverFile.storageType,
+        externalUrl: serverFile.externalUrl,
+        driveDownloadUrl: serverFile.externalUrl,
+        uploaderId: activeUid,
+        ownerUid: activeUid,
+        uploaderName: uploaderName,
+        ratingAvg: 5.0,
+        ratingCount: 1,
+        createdAt: serverFile.createdAt,
+        updatedAt: serverFile.updatedAt,
+      });
+      await this.logActivity('file_upload', `Added ${isMediaFire ? 'MediaFire' : 'External'} link file: ${serverFile.originalName}`, activeUid);
+    } catch (e) {
+      console.warn('Firestore sync warning for external link file:', e);
+    }
+
+    return {
+      message: 'External link file added successfully!',
+      file: serverFile,
+    };
+  },
+
   async editFile(id: string, updates: Partial<FileItem>): Promise<FileItem> {
     const fileRef = doc(db, 'files', id);
     const snap = await getDoc(fileRef);
@@ -931,10 +1009,23 @@ export const api = {
     return `/api/files/${encodeURIComponent(id)}/download${password ? `?password=${encodeURIComponent(password)}` : ''}`;
   },
 
+  getVisitorId(): string {
+    let vid = localStorage.getItem('filevault_visitor_id');
+    if (!vid) {
+      vid = 'v_' + Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+      localStorage.setItem('filevault_visitor_id', vid);
+    }
+    return vid;
+  },
+
   async incrementDownloadCount(id: string, filename?: string): Promise<{ incremented: boolean; downloadsCount?: number }> {
     let downloadedFiles: string[] = [];
     try {
-      downloadedFiles = JSON.parse(localStorage.getItem('filevault_ip_downloaded_files') || '[]');
+      downloadedFiles = JSON.parse(
+        localStorage.getItem('filevault_downloaded_files') ||
+        localStorage.getItem('filevault_ip_downloaded_files') ||
+        '[]'
+      );
     } catch {}
 
     // If client already downloaded this file in this browser
@@ -942,22 +1033,34 @@ export const api = {
       return { incremented: false };
     }
 
+    const visitorId = this.getVisitorId();
     let isServerIncremented = false;
     let newServerCount: number | undefined = undefined;
 
     try {
+      const currentUser = await this.getCurrentUser();
+      const activeUid = auth.currentUser?.uid || currentUser?.id || '';
+
       const url = `/api/files/${encodeURIComponent(id)}/increment-download${filename ? `?filename=${encodeURIComponent(filename)}` : ''}`;
-      const res = await fetch(url, { method: 'POST' });
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-visitor-id': visitorId,
+          ...(activeUid ? { 'x-user-uid': activeUid } : {}),
+        },
+        body: JSON.stringify({ visitorId }),
+      });
+
       if (res.ok) {
         const data = await res.json();
         if (data.incremented) {
           isServerIncremented = true;
           newServerCount = data.downloadsCount;
         } else if (data.duplicate) {
-          // IP address already downloaded this file on the server
           if (!downloadedFiles.includes(id)) {
             downloadedFiles.push(id);
-            localStorage.setItem('filevault_ip_downloaded_files', JSON.stringify(downloadedFiles));
+            localStorage.setItem('filevault_downloaded_files', JSON.stringify(downloadedFiles));
           }
           return { incremented: false, downloadsCount: data.downloadsCount };
         }
@@ -970,7 +1073,7 @@ export const api = {
     // Save locally
     if (!downloadedFiles.includes(id)) {
       downloadedFiles.push(id);
-      localStorage.setItem('filevault_ip_downloaded_files', JSON.stringify(downloadedFiles));
+      localStorage.setItem('filevault_downloaded_files', JSON.stringify(downloadedFiles));
     }
 
     if (isServerIncremented) {
