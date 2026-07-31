@@ -297,11 +297,11 @@ export default function App() {
   }, [files, currentUser]);
 
   const displayedFiles = useMemo(() => {
-    if (currentUser && vaultScope === 'mine') {
+    if (currentUser) {
       return myFiles;
     }
-    return files;
-  }, [files, myFiles, currentUser, vaultScope]);
+    return [];
+  }, [myFiles, currentUser]);
 
   // Related files logic for download modal
   const relatedFiles = selectedFileForDownload
@@ -685,82 +685,69 @@ export default function App() {
             {/* Dashboard Middle Native Ad */}
             <AdDisplay ads={ads} location="download_page_middle" type="native" />
 
+            {/* WhatsApp Support Banner Card */}
+            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 border border-[#25D366]/40 flex items-center justify-center shrink-0 text-[#25D366]">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.012 2c-5.506 0-9.989 4.478-9.989 9.984 0 1.758.459 3.474 1.33 4.982L2 22l5.176-1.338c1.45.79 3.097 1.222 4.836 1.222 5.506 0 9.989-4.478 9.989-9.984s-4.483-9.984-9.989-9.984zm0 18.281c-1.503 0-2.981-.403-4.275-1.168l-.307-.182-3.176.821.849-3.093-.2-.318A8.257 8.257 0 0 1 3.722 11.98c0-4.57 3.719-8.284 8.29-8.284 4.571 0 8.29 3.714 8.29 8.284 0 4.571-3.719 8.281-8.29 8.281zm4.542-6.206c-.249-.125-1.472-.726-1.7-.809-.228-.083-.394-.125-.56.125-.166.249-.643.809-.788.975-.145.166-.29.187-.539.062a6.792 6.792 0 0 1-1.998-1.233 7.488 7.488 0 0 1-1.383-1.722c-.145-.249-.016-.384.109-.508.112-.112.249-.29.373-.435.125-.145.166-.249.249-.415.083-.166.042-.311-.021-.435-.062-.125-.56-1.349-.768-1.847-.203-.486-.41-.42-.56-.427h-.477c-.166 0-.435.062-.664.311-.228.249-.871.851-.871 2.075 0 1.224.892 2.407 1.016 2.573.125.166 1.756 2.682 4.254 3.761.594.257 1.058.41 1.42.525.597.19 1.141.163 1.571.099.479-.071 1.472-.602 1.68-1.183.208-.581.208-1.079.145-1.183-.063-.104-.228-.166-.477-.291z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white flex items-center gap-1.5">
+                    WhatsApp Support
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">24/7 Active</span>
+                  </h4>
+                  <p className="text-[11px] text-emerald-200/80">Need help? SMS +918811896374 on WhatsApp</p>
+                </div>
+              </div>
+              <a
+                href="https://wa.me/918811896374?text=Hello%20FileVault%20Support"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-md transition shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Chat Now</span>
+              </a>
+            </div>
+
             {/* File Vault Section */}
             <div className="space-y-3">
-              {/* Vault Scope Toggle Headers */}
+              {/* Vault Scope Header */}
               <div className="flex items-center justify-between gap-2 border-b border-zinc-800/80 pb-2">
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-                  <button
-                    onClick={() => setVaultScope('mine')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border cursor-pointer ${
-                      vaultScope === 'mine'
-                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-300" />
-                    <span>My Vault</span>
-                    {currentUser && (
-                      <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
-                        vaultScope === 'mine' ? 'bg-indigo-700 text-white' : 'bg-zinc-800 text-zinc-300'
-                      }`}>
-                        {myFiles.length}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => setVaultScope('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border cursor-pointer ${
-                      vaultScope === 'all'
-                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <FolderOpen className="w-3.5 h-3.5 text-indigo-300" />
-                    <span>All Public Files</span>
-                    <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-extrabold ${
-                      vaultScope === 'all' ? 'bg-indigo-700 text-white' : 'bg-zinc-800 text-zinc-300'
-                    }`}>
-                      {files.length}
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                  <h3 className="text-xs font-bold text-white tracking-wide">My Storage Vault</h3>
+                  {currentUser && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">
+                      {myFiles.length} {myFiles.length === 1 ? 'file' : 'files'}
                     </span>
-                  </button>
+                  )}
                 </div>
-
-                <span className="text-[10px] text-zinc-500 font-bold hidden sm:inline">
-                  {vaultScope === 'mine' ? 'Isolated Private Storage' : 'Shared Cloud Files'}
-                </span>
+                <span className="text-[10px] text-zinc-500 font-bold">Isolated Private Storage</span>
               </div>
 
               {/* Account State & File Listing */}
-              {vaultScope === 'mine' && !currentUser ? (
+              {!currentUser ? (
                 <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 text-center space-y-3">
                   <div className="w-9 h-9 bg-zinc-800 border border-zinc-700 rounded-xl flex items-center justify-center mx-auto text-zinc-400">
                     <Lock className="w-4 h-4 text-amber-400" />
                   </div>
                   <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-white">Private Account File Isolation</h4>
+                    <h4 className="text-xs font-bold text-white">Private Account Vault</h4>
                     <p className="text-[11px] text-zinc-400 leading-normal">
                       Log in to view and manage your uploaded files privately.
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        setActiveBottomNav('account');
-                        setAuthModalOpen(true);
-                      }}
-                      className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
-                    >
-                      Log In / Register
-                    </button>
-                    <button
-                      onClick={() => setVaultScope('all')}
-                      className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-xl transition cursor-pointer"
-                    >
-                      Browse Public
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveBottomNav('account');
+                      setAuthModalOpen(true);
+                    }}
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
+                  >
+                    Log In / Register
+                  </button>
                 </div>
               ) : loadingFiles ? (
                 <div className="py-12 text-center space-y-2">
@@ -772,12 +759,10 @@ export default function App() {
                   <HardDriveUpload className="w-9 h-9 text-zinc-600 mx-auto" />
                   <div className="space-y-1">
                     <h4 className="text-xs font-bold text-zinc-300">
-                      {vaultScope === 'mine' ? 'No Files in Your Private Vault' : 'No Public Files Found'}
+                      No Files in Your Private Vault
                     </h4>
                     <p className="text-[11px] text-zinc-500 max-w-xs mx-auto">
-                      {vaultScope === 'mine'
-                        ? 'Upload your first file above to start sharing instant download links!'
-                        : 'No public files match the selected filter. Be the first to upload one!'}
+                      Upload your first file above to start sharing instant download links!
                     </p>
                   </div>
                   <button
@@ -943,6 +928,20 @@ export default function App() {
           await fetchFiles();
         }}
       />
+
+      {/* Floating WhatsApp Support Button */}
+      <a
+        href="https://wa.me/918811896374?text=Hello%20FileVault%20Support"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-20 right-4 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white px-3.5 py-2.5 rounded-full shadow-xl shadow-emerald-950/60 font-bold text-xs transition-all transform hover:scale-105 active:scale-95 cursor-pointer border border-emerald-400/40"
+        title="Contact Support on WhatsApp (+918811896374)"
+      >
+        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+          <path d="M12.012 2c-5.506 0-9.989 4.478-9.989 9.984 0 1.758.459 3.474 1.33 4.982L2 22l5.176-1.338c1.45.79 3.097 1.222 4.836 1.222 5.506 0 9.989-4.478 9.989-9.984s-4.483-9.984-9.989-9.984zm0 18.281c-1.503 0-2.981-.403-4.275-1.168l-.307-.182-3.176.821.849-3.093-.2-.318A8.257 8.257 0 0 1 3.722 11.98c0-4.57 3.719-8.284 8.29-8.284 4.571 0 8.29 3.714 8.29 8.284 0 4.571-3.719 8.281-8.29 8.281zm4.542-6.206c-.249-.125-1.472-.726-1.7-.809-.228-.083-.394-.125-.56.125-.166.249-.643.809-.788.975-.145.166-.29.187-.539.062a6.792 6.792 0 0 1-1.998-1.233 7.488 7.488 0 0 1-1.383-1.722c-.145-.249-.016-.384.109-.508.112-.112.249-.29.373-.435.125-.145.166-.249.249-.415.083-.166.042-.311-.021-.435-.062-.125-.56-1.349-.768-1.847-.203-.486-.41-.42-.56-.427h-.477c-.166 0-.435.062-.664.311-.228.249-.871.851-.871 2.075 0 1.224.892 2.407 1.016 2.573.125.166 1.756 2.682 4.254 3.761.594.257 1.058.41 1.42.525.597.19 1.141.163 1.571.099.479-.071 1.472-.602 1.68-1.183.208-.581.208-1.079.145-1.183-.063-.104-.228-.166-.477-.291z"/>
+        </svg>
+        <span className="font-extrabold text-xs tracking-wide">Support</span>
+      </a>
 
     </div>
   );
