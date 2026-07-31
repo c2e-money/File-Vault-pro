@@ -31,10 +31,11 @@ export interface FileItem {
   downloadsCount: number;
   viewsCount: number;
   thumbnailPath?: string;
-  storageType: 'local' | 'r2' | 's3' | 'gdrive' | 'dropbox' | 'onedrive' | 'google_drive';
+  storageType: 'local' | 'r2' | 's3' | 'gdrive' | 'dropbox' | 'onedrive' | 'google_drive' | 'mediafire' | 'external_link';
   driveFileId?: string;
   driveViewUrl?: string;
   driveDownloadUrl?: string;
+  externalUrl?: string;
   ratingAvg: number;
   ratingCount: number;
   createdAt: string;
@@ -56,6 +57,7 @@ export interface DownloadLog {
   fileId: string;
   fileName: string;
   userId?: string;
+  visitorId?: string;
   userName?: string;
   ipAddress: string;
   userAgent: string;
