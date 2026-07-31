@@ -11,7 +11,7 @@ import {
   FileText,
   CheckCircle2,
 } from 'lucide-react';
-import { Category } from '../types.js';
+import { Category, getShareableDownloadUrl } from '../types.js';
 import { api } from '../services/api.js';
 import { formatBytes } from './FileCard.js';
 
@@ -197,7 +197,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Unique Shareable Download Links</h3>
               {uploadedFiles.map((file) => {
-                const shareUrl = `${window.location.origin}/#file-${file.id}`;
+                const shareUrl = getShareableDownloadUrl(file);
                 const isCopied = copiedId === file.id;
 
                 return (
@@ -461,3 +461,4 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
     </div>
   );
 };
+              
