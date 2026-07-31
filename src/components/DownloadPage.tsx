@@ -67,6 +67,13 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
 
   // Copy link state
   const [copiedLink, setCopiedLink] = useState(false);
+  const [telegramUrl, setTelegramUrl] = useState('https://t.me/+cOVh2XrT7nBlYTE1');
+
+  useEffect(() => {
+    api.getSettings().then((s) => {
+      if (s.telegramChannelUrl) setTelegramUrl(s.telegramChannelUrl);
+    }).catch(() => {});
+  }, []);
 
   // Check login state
   const isLoggedIn = Boolean(currentUser || auth.currentUser);
@@ -251,13 +258,13 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans antialiased pb-20 sm:pb-8">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans antialiased pb-20 sm:pb-8 w-full max-w-full overflow-x-hidden">
       {/* Container aligned to mobile screen dimensions */}
-      <div className="max-w-md sm:max-w-xl mx-auto w-full min-h-screen bg-zinc-950 border-x border-zinc-900/80 shadow-2xl flex flex-col justify-between relative">
+      <div className="max-w-md sm:max-w-xl mx-auto w-full min-h-screen bg-zinc-950 border-x border-zinc-900/80 shadow-2xl flex flex-col justify-between relative overflow-x-hidden">
         
         <div>
           {/* Mobile App Header */}
-          <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-800/80 px-4 py-3">
+          <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800/80 px-3 sm:px-4 py-2.5 sm:py-3 max-w-full overflow-hidden">
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
@@ -439,7 +446,7 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
 
                   {/* Join Premium Telegram Channel Card */}
                   <a
-                    href="https://t.me/+cOVh2XrT7nBlYTE1"
+                    href={telegramUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full p-3.5 rounded-2xl bg-gradient-to-r from-sky-950/90 via-blue-950/90 to-indigo-950/90 border border-sky-400/40 hover:border-sky-400 transition-all shadow-lg shadow-sky-950/50 group active:scale-[0.98] cursor-pointer"
