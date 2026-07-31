@@ -72,8 +72,12 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
   useEffect(() => {
     api.getSettings().then((s) => {
       if (s.telegramChannelUrl) setTelegramUrl(s.telegramChannelUrl);
+      if (typeof s.defaultDownloadTimer === 'number') {
+        setTimer(s.defaultDownloadTimer);
+        setDownloadReady(s.defaultDownloadTimer === 0);
+      }
     }).catch(() => {});
-  }, []);
+  }, [file.id]);
 
   // Check login state
   const isLoggedIn = Boolean(currentUser || auth.currentUser);
