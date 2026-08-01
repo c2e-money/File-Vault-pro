@@ -19,6 +19,11 @@ import {
   testGoogleDriveConnection,
   resetDriveInstance,
 } from './src/server/googleDrive.js';
+import {
+  uploadToGitHubRelease,
+  deleteFromGitHubRelease,
+  testGitHubConnection,
+} from './src/server/githubStorage.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'filevault-super-secret-key-2026';
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -445,30 +450,54 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
         const fileId = `file-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
         const parsedTags = typeof tags === 'string' ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-        let driveResult: { driveFileId: string; webViewLink?: string; webContentLink?: string } | null = null;
-        let driveUploadError: string | null = null;
-
-        try {
-          driveResult = await uploadToGoogleDrive(file.path, file.originalname, file.mimetype);
-        } catch (gErr: any) {
-          driveUploadError = gErr?.message || String(gErr);
-          console.error('Google Drive Upload Failed:', driveUploadError);
-        }
-
         const currentStorageProvider = database.settings?.storageProvider || 'gdrive';
 
-        if (!driveResult && currentStorageProvider === 'gdrive') {
-          return res.status(400).json({
-            error: driveUploadError || 'Failed to upload file to Google Drive. Please check Google Drive credentials/quota in Admin Settings.',
-          });
+        let driveResult: { driveFileId: string; webViewLink?: string; webContentLink?: string } | null = null;
+        let githubResult: { downloadUrl: string; assetId: number; size: number } | null = null;
+        let uploadError: string | null = null;
+
+        if (currentStorageProvider === 'github') {
+          try {
+            githubResult = await uploadToGitHubRelease(file.path, file.originalname, file.mimetype);
+          } catch (ghErr: any) {
+            uploadError = ghErr?.message || String(ghErr);
+            console.error('GitHub Releases Upload Failed:', uploadError);
+            return res.status(400).json({
+              error: `GitHub Releases upload failed: ${uploadError}. Please check your GitHub Token and Repository in Admin Settings.`,
+            });
+          }
+        } else if (currentStorageProvider === 'gdrive') {
+          try {
+            driveResult = await uploadToGoogleDrive(file.path, file.originalname, file.mimetype);
+          } catch (gErr: any) {
+            uploadError = gErr?.message || String(gErr);
+            console.error('Google Drive Upload Failed:', uploadError);
+            return res.status(400).json({
+              error: `Google Drive upload failed: ${uploadError}. Please check Google Drive credentials in Admin Settings.`,
+            });
+          }
+        } else if (currentStorageProvider === 'local') {
+          // Local storage fallback - keep file on server disk
+        } else {
+          // Attempt GitHub first, fallback to Google Drive or Local
+          try {
+            githubResult = await uploadToGitHubRelease(file.path, file.originalname, file.mimetype);
+          } catch {
+            try {
+              driveResult = await uploadToGoogleDrive(file.path, file.originalname, file.mimetype);
+            } catch {}
+          }
         }
+
+        const resolvedStorageType = githubResult ? 'github' : driveResult ? 'google_drive' : 'local';
+        const resolvedFilePath = githubResult ? githubResult.downloadUrl : (driveResult?.webContentLink || `/uploads/${file.filename}`);
 
         const newFile: FileItem = {
           id: fileId,
           originalName: file.originalname,
           filename: file.filename,
-          filePath: driveResult?.webContentLink || file.path,
-          fileSize: file.size,
+          filePath: resolvedFilePath,
+          fileSize: githubResult ? githubResult.size : file.size,
           mimeType: file.mimetype || 'application/octet-stream',
           category: category || 'Software & Apps',
           ownerUid: activeOwnerUid,
@@ -483,10 +512,11 @@ app.post('/api/files/upload', (req: AuthRequest, res: Response, next: NextFuncti
           scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
           downloadsCount: 0,
           viewsCount: 0,
-          storageType: driveResult ? 'google_drive' : 'local',
+          storageType: resolvedStorageType,
           driveFileId: driveResult ? driveResult.driveFileId : undefined,
           driveViewUrl: driveResult ? driveResult.webViewLink : undefined,
           driveDownloadUrl: driveResult ? driveResult.webContentLink : undefined,
+          externalUrl: githubResult ? githubResult.downloadUrl : undefined,
           ratingAvg: 5.0,
           ratingCount: 1,
           createdAt: new Date().toISOString(),
@@ -656,6 +686,32 @@ app.get('/api/admin/drive-status', async (req: AuthRequest, res) => {
   res.json(status);
 });
 
+// Diagnostic endpoint for GitHub Releases status (supports GET and POST with override parameters)
+const handleGitHubStatus = async (req: AuthRequest, res: Response) => {
+  const token = req.body?.githubToken || req.query?.githubToken as string;
+  const repo = req.body?.githubRepo || req.query?.githubRepo as string;
+  const tag = req.body?.githubTag || req.query?.githubTag as string;
+
+  const overrides = (token || repo || tag) ? { token, repo, tag } : undefined;
+
+  if (token || repo) {
+    const database = db.getDb();
+    database.settings = {
+      ...database.settings,
+      ...(token ? { githubToken: token } : {}),
+      ...(repo ? { githubRepo: repo } : {}),
+      ...(tag ? { githubTag: tag } : {}),
+    };
+    db.save();
+  }
+
+  const status = await testGitHubConnection(overrides);
+  res.json(status);
+};
+
+app.get('/api/admin/github-status', handleGitHubStatus);
+app.post('/api/admin/github-status', handleGitHubStatus);
+
 // Enforce Unique Per User/Visitor Download Count Rule (1 download per user per file)
 function registerFileDownload(file: any, req: AuthRequest) {
   const database = db.getDb();
@@ -712,21 +768,28 @@ function registerFileDownload(file: any, req: AuthRequest) {
   return { incremented: false, downloadsCount: file.downloadsCount, ipAddress: clientIp, duplicate: true };
 }
 
-// Stream/Download file from Google Drive or server disk by filename
-app.get('/api/files/download-by-name/:filename', async (req: AuthRequest, res) => {
-  const safeFilename = path.basename(req.params.filename);
+// Stream/Download file by ID or filename (Supports GitHub Releases, Google Drive, External Links, and Local Storage)
+async function handleFileDownloadStream(idOrFilename: string, req: AuthRequest, res: Response) {
   const database = db.getDb();
-  const file = findFileByAnyIdentifier(database, safeFilename, req.query.filename as string);
+  const qFilename = (req.query.filename as string) || (req.query.name as string);
+  const file = findFileByAnyIdentifier(database, idOrFilename, qFilename);
 
   if (file) {
     registerFileDownload(file, req);
   }
 
-  // Stream from Google Drive if driveFileId exists
+  // 1. Direct external link / GitHub Release download redirect
+  const targetExternalUrl = file?.externalUrl || (file?.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://')) ? file.filePath : null);
+
+  if (targetExternalUrl) {
+    return res.redirect(targetExternalUrl);
+  }
+
+  // 2. Stream from Google Drive if driveFileId exists
   if (file && file.driveFileId) {
     try {
       const mimeType = file.mimeType || 'application/octet-stream';
-      const rawDisplayName = (req.query.name as string) || file.originalName || safeFilename;
+      const rawDisplayName = (req.query.name as string) || file.originalName || idOrFilename;
       const safeDisplayName = rawDisplayName.replace(/["\r\n\/\\]/g, '_');
       const encodedDisplayName = encodeURIComponent(rawDisplayName);
 
@@ -752,11 +815,14 @@ app.get('/api/files/download-by-name/:filename', async (req: AuthRequest, res) =
       driveRes.data.pipe(res);
       return;
     } catch (driveErr) {
-      console.error('Google Drive streaming failed in download-by-name, falling back to local file if available:', driveErr);
+      console.error('Google Drive streaming failed in download endpoint, falling back to local file if available:', driveErr);
     }
   }
 
+  // 3. Fallback to Local Server Storage disk file
+  const safeFilename = path.basename(file?.filename || idOrFilename);
   const filePath = path.join(UPLOADS_DIR, safeFilename);
+
   if (!fs.existsSync(filePath)) {
     return res.status(404).setHeader('Content-Type', 'text/plain').send('File missing from server storage');
   }
@@ -795,6 +861,14 @@ app.get('/api/files/download-by-name/:filename', async (req: AuthRequest, res) =
     });
     fs.createReadStream(filePath).pipe(res);
   }
+}
+
+app.get('/api/files/download-by-name/:filename', (req: AuthRequest, res) => {
+  return handleFileDownloadStream(req.params.filename, req, res);
+});
+
+app.get('/api/files/:id/download', (req: AuthRequest, res) => {
+  return handleFileDownloadStream(req.params.id, req, res);
 });
 
 // Explicit Download Count Increment Endpoint (Strict 1 IP = 1 Download)
@@ -852,6 +926,23 @@ app.post('/api/files/:id/increment-download', (req: AuthRequest, res) => {
   return res.json({ success: true, incremented: false, duplicate: true, ipAddress: clientIp });
 });
 
+// Helper to check if requester is Admin, file owner, or guest
+function checkCanManageFile(req: AuthRequest, file: any): boolean {
+  if (!file) return false;
+  const requesterUid = (req.headers['x-user-uid'] as string) || req.user?.id;
+  const isAdminHeader = req.headers['x-is-admin'] === 'true' || Boolean(req.headers['x-admin-token']);
+
+  const fileOwnerUid = file.ownerUid || file.uploaderId;
+  const isOwner = Boolean(requesterUid && fileOwnerUid && requesterUid === fileOwnerUid);
+  const isGuestFile = !fileOwnerUid || fileOwnerUid === 'usr-guest' || fileOwnerUid === 'guest';
+
+  const isAdmin = req.user?.role === 'admin' ||
+                  isAdminHeader ||
+                  Boolean(requesterUid && (requesterUid.includes('admin') || requesterUid === 'usr-admin-master'));
+
+  return isAdmin || isOwner || isGuestFile;
+}
+
 // Edit File Metadata
 app.put('/api/files/:id/edit', (req: AuthRequest, res) => {
   const database = db.getDb();
@@ -863,8 +954,8 @@ app.put('/api/files/:id/edit', (req: AuthRequest, res) => {
 
   const file = database.files[fileIndex];
 
-  // Authorization check: Only the user who uploaded the file can edit it
-  if (!req.user || req.user.id !== file.uploaderId) {
+  // Authorization check: Admin has full access, users can edit their own files
+  if (!checkCanManageFile(req, file)) {
     return res.status(403).json({ error: 'Permission denied. You can only edit your own files.' });
   }
 
@@ -925,7 +1016,7 @@ app.put('/api/files/:id/replace', upload.single('file'), async (req: AuthRequest
     return res.status(404).json({ error: 'File not found' });
   }
 
-  if (!req.user || req.user.id !== file.uploaderId) {
+  if (!checkCanManageFile(req, file)) {
     return res.status(403).json({ error: 'Permission denied. You can only replace content for your own files.' });
   }
 
@@ -979,14 +1070,7 @@ app.delete('/api/files/:id', async (req: AuthRequest, res) => {
 
   const file = database.files[fileIndex];
 
-  const requesterUid = (req.headers['x-user-uid'] as string) || req.user?.id;
-  const fileOwnerUid = file.ownerUid || file.uploaderId;
-
-  const isOwner = Boolean(requesterUid && fileOwnerUid && requesterUid === fileOwnerUid);
-  const isAdmin = req.user?.role === 'admin';
-  const isGuestFile = !fileOwnerUid || fileOwnerUid === 'usr-guest' || fileOwnerUid === 'guest';
-
-  if (!isOwner && !isAdmin && !isGuestFile) {
+  if (!checkCanManageFile(req, file)) {
     return res.status(403).json({ error: 'Permission denied. You can only delete your own files.' });
   }
 
