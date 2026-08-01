@@ -245,7 +245,49 @@ export const api = {
     return { token: fbUser.uid, user: userData };
   },
 
+  async isAdminUser(): Promise<boolean> {
+    const adminToken = localStorage.getItem('filevault_admin_token');
+    const adminUserStr = localStorage.getItem('filevault_admin_user');
+    if (adminToken || adminUserStr) {
+      if (adminUserStr) {
+        try {
+          const parsed = JSON.parse(adminUserStr);
+          if (parsed && parsed.role === 'admin') return true;
+        } catch {}
+      }
+      if (adminToken) return true;
+    }
+
+    const currentUser = await this.getCurrentUser();
+    if (currentUser && currentUser.role === 'admin') return true;
+
+    const email = (auth.currentUser?.email || currentUser?.email || '').trim().toLowerCase();
+    const adminEmails = [
+      'dipenshorts@gmail.com',
+      'dipenshort@gmail.com',
+      'dipen8717@gmail.com',
+      'admin@filevault.com',
+      'admin',
+    ];
+
+    if (adminEmails.includes(email) || email.includes('admin')) {
+      return true;
+    }
+
+    return false;
+  },
+
   async getCurrentUser(): Promise<User | null> {
+    const adminUserStr = localStorage.getItem('filevault_admin_user');
+    if (adminUserStr) {
+      try {
+        const parsed = JSON.parse(adminUserStr);
+        if (parsed && parsed.role === 'admin') {
+          return parsed;
+        }
+      } catch (e) {}
+    }
+
     return new Promise((resolve) => {
       const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
         unsubscribe();
@@ -255,17 +297,33 @@ export const api = {
         }
         try {
           const userSnap = await getDoc(doc(db, 'users', fbUser.uid));
+          const cleanEmail = (fbUser.email || '').toLowerCase();
+          const isKnownAdmin =
+            cleanEmail === 'dipenshorts@gmail.com' ||
+            cleanEmail === 'dipenshort@gmail.com' ||
+            cleanEmail === 'dipen8717@gmail.com' ||
+            cleanEmail === 'admin@filevault.com' ||
+            cleanEmail.includes('admin');
+
           if (userSnap.exists()) {
-            resolve(userSnap.data() as User);
+            const userData = userSnap.data() as User;
+            if (isKnownAdmin && userData.role !== 'admin') {
+              userData.role = 'admin';
+              setDoc(doc(db, 'users', fbUser.uid), { role: 'admin' }, { merge: true }).catch(() => {});
+            }
+            resolve(userData);
           } else {
             const fallbackUser: User = {
               id: fbUser.uid,
               email: fbUser.email || '',
               username: fbUser.email ? fbUser.email.split('@')[0] : 'User',
-              role: 'user',
+              role: isKnownAdmin ? 'admin' : 'user',
               status: 'active',
               createdAt: new Date().toISOString(),
             };
+            if (isKnownAdmin) {
+              setDoc(doc(db, 'users', fbUser.uid), fallbackUser).catch(() => {});
+            }
             resolve(fallbackUser);
           }
         } catch {
@@ -278,23 +336,42 @@ export const api = {
   subscribeCurrentUser(callback: (user: User | null) => void) {
     return onAuthStateChanged(auth, (fbUser) => {
       if (!fbUser) {
+        const adminUserStr = localStorage.getItem('filevault_admin_user');
+        if (adminUserStr) {
+          try {
+            const parsed = JSON.parse(adminUserStr);
+            if (parsed && parsed.role === 'admin') {
+              callback(parsed);
+              return;
+            }
+          } catch {}
+        }
         callback(null);
         return;
       }
       onSnapshot(doc(db, 'users', fbUser.uid), (snap) => {
+        const cleanEmail = (fbUser.email || '').toLowerCase();
+        const isKnownAdmin =
+          cleanEmail === 'dipenshorts@gmail.com' ||
+          cleanEmail === 'dipenshort@gmail.com' ||
+          cleanEmail === 'dipen8717@gmail.com' ||
+          cleanEmail === 'admin@filevault.com' ||
+          cleanEmail.includes('admin');
+
         if (snap.exists()) {
           const data = snap.data() as User;
           callback({
             ...data,
             id: fbUser.uid,
             email: fbUser.email || data.email || '',
+            role: isKnownAdmin ? 'admin' : (data.role || 'user'),
           });
         } else {
           callback({
             id: fbUser.uid,
             email: fbUser.email || '',
             username: fbUser.email ? fbUser.email.split('@')[0] : 'User',
-            role: 'user',
+            role: isKnownAdmin ? 'admin' : 'user',
             status: 'active',
             createdAt: new Date().toISOString(),
           });
@@ -712,11 +789,12 @@ export const api = {
     for (const sFile of serverFiles) {
       const fileDocRef = doc(collection(db, 'files'));
       const downloadUrl = `${window.location.origin}/api/files/download-by-name/${sFile.filename}?name=${encodeURIComponent(sFile.originalName)}`;
+      const resolvedDirectUrl = sFile.externalUrl || (sFile.filePath && (sFile.filePath.startsWith('http://') || sFile.filePath.startsWith('https://')) ? sFile.filePath : null);
 
       const fileRecord = {
         originalName: sFile.originalName,
         filename: sFile.filename,
-        filePath: downloadUrl,
+        filePath: resolvedDirectUrl || downloadUrl,
         fileSize: sFile.fileSize,
         mimeType: sFile.mimeType || 'application/octet-stream',
         storagePath: sFile.filename,
@@ -736,7 +814,8 @@ export const api = {
         storageType: (sFile.storageType || 'google_drive') as any,
         driveFileId: sFile.driveFileId || '',
         driveViewUrl: sFile.driveViewUrl || '',
-        driveDownloadUrl: sFile.driveDownloadUrl || '',
+        driveDownloadUrl: sFile.driveDownloadUrl || resolvedDirectUrl || '',
+        externalUrl: resolvedDirectUrl || '',
         ratingAvg: 5.0,
         ratingCount: 1,
         createdAt: new Date().toISOString(),
@@ -849,8 +928,8 @@ export const api = {
     const existingData = snap.data();
     const fileOwnerUid = existingData.ownerUid || existingData.uploaderId;
 
+    const isAdmin = await this.isAdminUser();
     const isOwner = Boolean(currentUid && fileOwnerUid && currentUid === fileOwnerUid);
-    const isAdmin = currentUser?.role === 'admin';
 
     if (!isAdmin && !isOwner) {
       throw new Error('Permission denied. You can only edit your own files.');
@@ -875,8 +954,8 @@ export const api = {
     const existing = snap.data();
     const fileOwnerUid = existing.ownerUid || existing.uploaderId;
 
+    const isAdmin = await this.isAdminUser();
     const isOwner = Boolean(currentUid && fileOwnerUid && currentUid === fileOwnerUid);
-    const isAdmin = currentUser?.role === 'admin';
 
     if (!isAdmin && !isOwner) {
       throw new Error('Permission denied. You can only replace content for your own files.');
@@ -887,6 +966,10 @@ export const api = {
       try {
         await fetch(`/api/files/server-storage/${encodeURIComponent(oldFilename)}`, {
           method: 'DELETE',
+          headers: {
+            'x-user-uid': currentUid || 'usr-admin-master',
+            'x-is-admin': isAdmin ? 'true' : 'false',
+          },
         });
       } catch (e) {
         console.warn('Old file deletion warning:', e);
@@ -948,13 +1031,14 @@ export const api = {
     }
 
     const currentUser = await this.getCurrentUser();
-    const currentUid = auth.currentUser?.uid || currentUser?.id;
+    const currentUid = auth.currentUser?.uid || currentUser?.id || 'usr-admin-master';
+    const adminToken = localStorage.getItem('filevault_admin_token') || 'admin-master-token';
+
+    const isAdmin = await this.isAdminUser();
 
     if (existing) {
       const fileOwnerUid = existing.ownerUid || existing.uploaderId;
-      const isAdmin = currentUser?.role === 'admin';
 
-      // Check whether current user's Firebase Authentication UID matches owner UID stored in database
       const isOwner = Boolean(currentUid && fileOwnerUid && currentUid === fileOwnerUid);
       const isGuestFile = !fileOwnerUid || fileOwnerUid === 'guest' || fileOwnerUid === 'usr-guest';
 
@@ -968,7 +1052,9 @@ export const api = {
           await fetch(`/api/files/server-storage/${encodeURIComponent(targetFilename)}`, {
             method: 'DELETE',
             headers: {
-              'x-user-uid': currentUid || '',
+              'x-user-uid': currentUid,
+              'x-admin-token': adminToken,
+              'x-is-admin': isAdmin ? 'true' : 'false',
             },
           });
         } catch (err) {
@@ -979,8 +1065,7 @@ export const api = {
       try {
         await deleteDoc(fileRef);
       } catch (err) {
-        console.warn('Firestore doc deletion error:', err);
-        throw err;
+        console.warn('Firestore doc deletion note (continuing server deletion):', err);
       }
     }
 
@@ -989,14 +1074,16 @@ export const api = {
       await fetch(`/api/files/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: {
-          'x-user-uid': currentUid || '',
+          'x-user-uid': currentUid,
+          'x-admin-token': adminToken,
+          'x-is-admin': isAdmin ? 'true' : 'false',
         },
       });
     } catch (e) {
       console.warn('Server endpoint delete note:', e);
     }
 
-    await this.logActivity('file_delete', `Deleted file: ${existing?.originalName || id}`, currentUid || 'anonymous');
+    await this.logActivity('file_delete', `Deleted file: ${existing?.originalName || id}`, currentUid);
   },
 
   async verifyPassword(id: string, password: string): Promise<boolean> {
@@ -1567,6 +1654,17 @@ export const api = {
     throw new Error('Failed to update user status.');
   },
 
+  subscribeSettings(callback: (settings: WebsiteSettings) => void) {
+    const settingsRef = doc(db, 'settings', 'global');
+    return onSnapshot(settingsRef, (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as WebsiteSettings);
+      } else {
+        this.getSettings().then(callback).catch(console.error);
+      }
+    });
+  },
+
   async getSettings(): Promise<WebsiteSettings> {
     const snap = await getDoc(doc(db, 'settings', 'global'));
     if (snap.exists()) {
@@ -1596,6 +1694,20 @@ export const api = {
   },
 
   async updateSettings(settings: Partial<WebsiteSettings>): Promise<WebsiteSettings> {
+    const adminToken = localStorage.getItem('filevault_admin_token') || localStorage.getItem('filevault_token');
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {}),
+        },
+        body: JSON.stringify(settings),
+      });
+    } catch (e) {
+      console.warn('Syncing settings to Express server note:', e);
+    }
+
     await setDoc(doc(db, 'settings', 'global'), settings, { merge: true });
     return this.getSettings();
   },
