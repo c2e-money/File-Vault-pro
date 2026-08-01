@@ -10,6 +10,8 @@ export const AdminSettingsManager: React.FC = () => {
   const [saved, setSaved] = useState(false);
   const [driveTesting, setDriveTesting] = useState(false);
   const [driveStatus, setDriveStatus] = useState<any>(null);
+  const [githubTesting, setGithubTesting] = useState(false);
+  const [githubStatus, setGithubStatus] = useState<any>(null);
 
   const testDriveConnection = async () => {
     setDriveTesting(true);
@@ -25,6 +27,35 @@ export const AdminSettingsManager: React.FC = () => {
       setDriveStatus({ status: 'ERROR', error: err.message || 'Failed to reach server' });
     } finally {
       setDriveTesting(false);
+    }
+  };
+
+  const testGitHubConnection = async () => {
+    setGithubTesting(true);
+    setGithubStatus(null);
+    try {
+      if (settings) {
+        await api.updateSettings(settings);
+      }
+      const adminToken = localStorage.getItem('filevault_admin_token') || localStorage.getItem('filevault_token') || '';
+      const res = await fetch('/api/admin/github-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(adminToken ? { 'Authorization': `Bearer ${adminToken}` } : {}),
+        },
+        body: JSON.stringify({
+          githubToken: settings?.githubToken || '',
+          githubRepo: settings?.githubRepo || '',
+          githubTag: settings?.githubTag || 'uploads',
+        }),
+      });
+      const data = await res.json();
+      setGithubStatus(data);
+    } catch (err: any) {
+      setGithubStatus({ status: 'ERROR', error: err.message || 'Failed to reach server' });
+    } finally {
+      setGithubTesting(false);
     }
   };
 
@@ -187,17 +218,106 @@ export const AdminSettingsManager: React.FC = () => {
               <select
                 value={settings.storageProvider}
                 onChange={(e: any) => setSettings({ ...settings, storageProvider: e.target.value })}
-                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-200 mb-2"
+                className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-200 mb-2 font-semibold"
               >
+                <option value="github">🚀 GitHub Releases Storage (100% Free Lifetime Storage & Unlimited Downloads)</option>
+                <option value="gdrive">Google Drive Cloud API</option>
                 <option value="local">Local Disk Server</option>
                 <option value="r2">Cloudflare R2 Storage</option>
                 <option value="s3">Amazon Web Services S3</option>
-                <option value="gdrive">Google Drive Cloud API</option>
                 <option value="dropbox">Dropbox API Storage</option>
                 <option value="onedrive">Microsoft OneDrive API</option>
               </select>
 
-              <div className="mt-2 p-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3">
+              {/* GitHub Releases Configuration Card */}
+              <div className="mt-3 p-3.5 bg-zinc-950 border border-emerald-500/30 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 bg-emerald-500/20 text-emerald-400 rounded-lg">
+                      <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                      </svg>
+                    </span>
+                    <div>
+                      <span className="text-xs font-bold text-white block">GitHub Releases Storage (Free Lifetime)</span>
+                      <span className="text-[10px] text-emerald-400 font-medium">2GB/File • Unlimited Bandwidth & Downloads • 0$ Forever</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={testGitHubConnection}
+                    disabled={githubTesting}
+                    className="px-2.5 py-1 bg-emerald-900/40 border border-emerald-700/50 hover:bg-emerald-800/50 text-emerald-200 text-[11px] font-semibold rounded-lg transition"
+                  >
+                    {githubTesting ? 'Checking...' : 'Test Connection'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-medium text-zinc-300 mb-0.5">
+                      GitHub Personal Access Token (PAT)
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={settings.githubToken || ''}
+                      onChange={(e) => setSettings({ ...settings, githubToken: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-emerald-300 font-mono"
+                    />
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      Generate at <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer" className="text-indigo-400 underline">github.com/settings/tokens</a> with <code className="text-emerald-400">repo</code> scope checked.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-medium text-zinc-300 mb-0.5">
+                        GitHub Repository (owner/repo)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. username/my-file-storage"
+                        value={settings.githubRepo || ''}
+                        onChange={(e) => setSettings({ ...settings, githubRepo: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-zinc-300 mb-0.5">
+                        Release Tag Container
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. uploads (default)"
+                        value={settings.githubTag || ''}
+                        onChange={(e) => setSettings({ ...settings, githubTag: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-200 font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {githubStatus && (
+                  <div className={`p-2.5 rounded-lg text-xs font-mono space-y-1.5 ${
+                    githubStatus.status === 'CONNECTED' ? 'bg-emerald-950/60 border border-emerald-800/60 text-emerald-300' : 'bg-red-950/60 border border-red-800/60 text-red-300'
+                  }`}>
+                    <div className="flex items-center gap-1.5 font-bold">
+                      {githubStatus.status === 'CONNECTED' ? (
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                      ) : (
+                        <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+                      )}
+                      <span>Status: {githubStatus.status}</span>
+                    </div>
+                    {githubStatus.message && <div className="text-[11px] text-emerald-300 font-sans">{githubStatus.message}</div>}
+                    {githubStatus.error && <div className="text-[11px] text-red-300 font-semibold font-sans">{githubStatus.error}</div>}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 p-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3 opacity-80">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                     <HardDrive className="w-3.5 h-3.5 text-purple-400" /> Google Drive Configuration & Status
@@ -285,27 +405,44 @@ export const AdminSettingsManager: React.FC = () => {
           </div>
         </div>
 
-        {/* System Flags */}
-        <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-300 font-bold flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-amber-400" /> Maintenance Mode
-            </span>
-            <input
-              type="checkbox"
-              checked={settings.maintenanceMode}
-              onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
-              className="w-4 h-4 accent-purple-600 rounded"
-            />
+        {/* System Flags & Maintenance Mode */}
+        <div className="p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+            <div>
+              <span className="text-xs text-white font-extrabold flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400" /> Maintenance Mode (साइट मेंटेनेंस पॉपअप)
+              </span>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                When enabled, visitors, users, and download page visitors will see a maintenance popup notification pausing site operations.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                settings.maintenanceMode
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+              }`}>
+                {settings.maintenanceMode ? '🚧 Maintenance Active' : '🟢 Live (Normal)'}
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.maintenanceMode}
+                onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
+                className="w-5 h-5 accent-purple-600 rounded cursor-pointer"
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-300 font-bold">Require User Login to Download</span>
+            <div>
+              <span className="text-xs text-zinc-200 font-bold">Require User Login to Download</span>
+              <p className="text-[11px] text-zinc-500">Force users to log in before downloading any shared files.</p>
+            </div>
             <input
               type="checkbox"
               checked={settings.requireLoginToDownload}
               onChange={(e) => setSettings({ ...settings, requireLoginToDownload: e.target.checked })}
-              className="w-4 h-4 accent-purple-600 rounded"
+              className="w-4 h-4 accent-purple-600 rounded cursor-pointer"
             />
           </div>
         </div>
