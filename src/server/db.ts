@@ -130,7 +130,7 @@ const defaultSettings: WebsiteSettings = {
   storageProvider: 'local',
   enableCaptcha: false,
   requireLoginToDownload: false,
-  defaultDownloadTimer: 10,
+  defaultDownloadTimer: 5,
   adFrequency: 100,
   currencySymbol: '$',
   analyticsCode: '',
