@@ -31,7 +31,7 @@ export interface FileItem {
   downloadsCount: number;
   viewsCount: number;
   thumbnailPath?: string;
-  storageType: 'local' | 'r2' | 's3' | 'gdrive' | 'dropbox' | 'onedrive' | 'google_drive' | 'mediafire' | 'external_link';
+  storageType: 'local' | 'r2' | 's3' | 'gdrive' | 'dropbox' | 'onedrive' | 'google_drive' | 'github' | 'mediafire' | 'external_link';
   driveFileId?: string;
   driveViewUrl?: string;
   driveDownloadUrl?: string;
@@ -132,7 +132,7 @@ export interface WebsiteSettings {
   siteDescription: string;
   maxUploadSizeMb: number;
   allowedExtensions: string[];
-  storageProvider: 'local' | 'r2' | 's3' | 'gdrive' | 'dropbox' | 'onedrive';
+  storageProvider: 'local' | 'r2' | 's3' | 'gdrive' | 'dropbox' | 'onedrive' | 'github';
   enableCaptcha: boolean;
   requireLoginToDownload: boolean;
   defaultDownloadTimer: number; // in seconds
@@ -151,6 +151,9 @@ export interface WebsiteSettings {
   gdriveRefreshToken?: string;
   gdriveClientEmail?: string;
   gdrivePrivateKey?: string;
+  githubToken?: string;
+  githubRepo?: string;
+  githubTag?: string;
 }
 
 export interface ActivityLog {

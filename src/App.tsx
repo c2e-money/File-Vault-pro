@@ -33,6 +33,7 @@ import { DeleteConfirmationModal } from './components/DeleteConfirmationModal.js
 import { DownloadPage } from './components/DownloadPage.js';
 import { AdminPanel } from './components/AdminPanel/AdminPanel.js';
 import { AdminLoginPage } from './components/AdminPanel/AdminLoginPage.js';
+import { MaintenanceModal } from './components/MaintenanceModal.js';
 import { FileItem, User, Category, Advertisement, WebsiteSettings, getShareableDownloadUrl } from './types.js';
 import { api } from './services/api.js';
 import { auth } from './lib/firebase.js';
@@ -163,12 +164,18 @@ export default function App() {
       setAds(a);
     });
 
-    api.getSettings().then(setSiteSettings).catch(console.error);
+    const unsubSettings = api.subscribeSettings((s) => {
+      setSiteSettings(s);
+      if (s?.siteName) {
+        document.title = s.siteName;
+      }
+    });
 
     return () => {
       unsubUser();
       unsubCats();
       unsubAds();
+      unsubSettings();
     };
   }, []);
 
@@ -572,6 +579,18 @@ export default function App() {
           isOpen={!!reportModalFile}
           onClose={() => setReportModalFile(null)}
         />
+
+        {/* Global Maintenance Mode Overlay */}
+        <MaintenanceModal
+          isOpen={Boolean(siteSettings?.maintenanceMode)}
+          settings={siteSettings}
+          isAdmin={currentUser?.role === 'admin' || Boolean(localStorage.getItem('filevault_admin_token')) || Boolean(localStorage.getItem('filevault_admin_user'))}
+          onOpenAdminPanel={() => {
+            setIsAdminView(true);
+            setDownloadRouteFileId(null);
+            setSelectedFileForDownload(null);
+          }}
+        />
       </>
     );
   }
@@ -585,6 +604,7 @@ export default function App() {
           {/* Main Mobile App Navbar */}
           <Navbar
             user={currentUser}
+            siteSettings={siteSettings}
             onOpenUpload={() => {
               setActiveBottomNav('upload');
               handleOpenUpload();
@@ -627,9 +647,11 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <h2 className="text-base font-extrabold text-white tracking-tight">Upload & Share Any File</h2>
+                <h2 className="text-base font-extrabold text-white tracking-tight">
+                  {siteSettings?.siteName ? `Upload & Share Files on ${siteSettings.siteName}` : 'Upload & Share Any File'}
+                </h2>
                 <p className="text-[11px] text-zinc-400 max-w-xs mx-auto">
-                  Instant direct downloads for APKs, PDFs, archives, software, and media files.
+                  {siteSettings?.siteDescription || 'Instant direct downloads for APKs, PDFs, archives, software, and media files.'}
                 </p>
               </div>
 
@@ -942,6 +964,14 @@ export default function App() {
         </svg>
         <span className="font-extrabold text-xs tracking-wide">Support</span>
       </a>
+
+      {/* Global Maintenance Mode Overlay */}
+      <MaintenanceModal
+        isOpen={Boolean(siteSettings?.maintenanceMode)}
+        settings={siteSettings}
+        isAdmin={currentUser?.role === 'admin' || Boolean(localStorage.getItem('filevault_admin_token')) || Boolean(localStorage.getItem('filevault_admin_user'))}
+        onOpenAdminPanel={() => setIsAdminView(true)}
+      />
 
     </div>
   );
