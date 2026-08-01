@@ -175,50 +175,17 @@ export const DownloadPage: React.FC<DownloadPageProps> = ({
 
     triggerSmartLink();
 
-    const downloadUrl = api.getDownloadUrl(file.id, isUnlocked ? passwordInput : undefined);
+    const directUrl = file.externalUrl || (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://')) ? file.filePath : null);
+    const downloadUrl = directUrl || api.getDownloadUrl(file.id, isUnlocked ? passwordInput : undefined);
 
-    if (file.filePath && (file.filePath.startsWith('http://') || file.filePath.startsWith('https://'))) {
-      const link = document.createElement('a');
-      link.href = file.filePath;
-      link.target = '_blank';
-      link.download = file.originalName || 'download';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      try {
-        const response = await fetch(downloadUrl, {
-          headers: {
-            'x-visitor-id': api.getVisitorId(),
-          },
-        });
-        if (response.ok) {
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = file.originalName || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-        } else {
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = file.originalName || 'download';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-      } catch (err) {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = file.originalName || 'download';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    }
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = file.originalName || 'download';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 
     const res = await api.incrementDownloadCount(file.id, file.filename);
     if (res && res.incremented) {

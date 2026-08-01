@@ -13,10 +13,11 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { User, Category } from '../types.js';
+import { User, Category, WebsiteSettings } from '../types.js';
 
 interface NavbarProps {
   user: User | null;
+  siteSettings?: WebsiteSettings | null;
   onOpenUpload: () => void;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -32,6 +33,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   user,
+  siteSettings,
   onOpenUpload,
   onOpenAuth,
   onLogout,
@@ -46,8 +48,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [showSearch, setShowSearch] = useState(false);
 
+  const siteTitle = siteSettings?.siteName || 'FileVault';
+
   return (
     <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-2.5 sm:px-4 py-2.5 sm:py-3 transition-colors overflow-hidden max-w-full">
+      {/* Dynamic Announcement Header Notice */}
+      {siteSettings?.headerNotice && (
+        <div className="mb-2.5 px-3 py-1.5 bg-gradient-to-r from-purple-900/60 via-indigo-900/60 to-purple-900/60 border border-purple-500/30 rounded-xl text-center flex items-center justify-center gap-2 animate-pulse">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="text-[11px] font-bold text-purple-200 truncate">
+            {siteSettings.headerNotice}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-1.5 sm:gap-3 max-w-full">
         {/* Brand Logo */}
         <button
@@ -61,9 +75,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div>
             <span className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-1">
-              File<span className="text-indigo-400">Vault</span>
+              {siteTitle}
               <span className="text-[8px] sm:text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold px-1 py-0.2 rounded uppercase">
-                Pro
+                App
               </span>
             </span>
           </div>

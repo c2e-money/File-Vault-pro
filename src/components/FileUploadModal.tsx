@@ -29,6 +29,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
   onUploadSuccess,
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [category, setCategory] = useState(categories[0]?.name || 'Software & Apps');
   const [description, setDescription] = useState('');
@@ -99,6 +100,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (selectedFiles.length === 0) {
       setError('Please select at least one file to upload');
       return;
@@ -163,10 +165,12 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">
-                {uploadedFiles ? 'Upload Successful!' : 'Upload Files'}
+                {uploadedFiles ? 'Upload Successful!' : 'Add & Share Files'}
               </h2>
               <p className="text-xs text-zinc-400">
-                {uploadedFiles ? 'Your file(s) are stored and ready for instant download.' : 'Drag & drop files or choose from disk (up to 1 GB)'}
+                {uploadedFiles
+                  ? 'Your file(s) are stored and ready for instant download.'
+                  : 'Direct File Upload or Permanent MediaFire/Cloud Links'}
               </p>
             </div>
           </div>
@@ -191,7 +195,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
           <div className="p-6 space-y-6">
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs rounded-xl flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>File(s) uploaded successfully to server storage and saved in database!</span>
+              <span>File download page created successfully with instant timer & monetization!</span>
             </div>
 
             <div className="space-y-3">
@@ -434,7 +438,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
               }}
               className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl transition"
             >
-              {uploading ? 'Cancel Upload' : 'Cancel'}
+              Cancel
             </button>
 
             <button
@@ -461,4 +465,3 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
     </div>
   );
 };
-              
